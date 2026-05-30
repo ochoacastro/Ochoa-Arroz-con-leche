@@ -819,13 +819,14 @@
     <div class="admin-header">
       <h2>📋 PEDIDOS</h2>
       <div style="display:flex;gap:8px;align-items:center">
+        <button id="btn-config-admin" onclick="toggleConfig()" style="display:none;background:none;border:2px solid #ccc;border-radius:50%;width:34px;height:34px;font-size:1rem;cursor:pointer;padding:0">⚙️</button>
         <span class="badge-count" id="badge-pendiente">0 pendientes</span>
         <button class="btn-cierre" style="background:var(--magenta);border-color:var(--magenta)" onclick="abrirQR()">📲 QR</button>
         <button class="btn-cierre" onclick="cerrarDia()">🌙 Cerrar día</button>
       </div>
     </div>
 
-    <!-- Config precio (oculto — desbloquear con 30 taps al 🍚) -->
+    <!-- Config precio (oculto — desbloquear con 10 taps al logo) -->
     <div class="card" id="config-card" style="display:none;margin-bottom:16px">
       <h2>⚙️ Configuración</h2>
       <label style="margin-top:8px;display:block">💰 Precio por unidad</label>
@@ -839,18 +840,13 @@
         <span style="font-size:0.8rem;color:var(--gray);font-weight:700">COP</span>
       </div>
       <label>📅 Fecha de entrega</label>
-      <input type="text" id="fecha-entrega-config" placeholder="Ej: Sábado 7 de junio · 2–5 pm"
-        maxlength="80" oninput="guardarFechaEntrega(this.value)"
+      <input type="date" id="fecha-entrega-config"
+        oninput="guardarFechaEntrega(this.value)"
         style="margin-top:4px">
       <label style="margin-top:14px;display:block">📱 Tu número WhatsApp (recibe pedidos)</label>
       <input type="tel" id="wa-num-config" placeholder="Ej: 573001234567 (con código país)"
         maxlength="20" oninput="localStorage.setItem('ochoa_wa_num', this.value)"
         style="margin-top:4px">
-      <label style="margin-top:14px;display:block">🔥 Firebase Database URL</label>
-      <input type="text" id="firebase-url-config" placeholder="https://tu-proyecto-default-rtdb.firebaseio.com"
-        style="margin-top:4px;font-size:0.82rem"
-        oninput="guardarFirebaseURL(this.value)">
-      <p style="font-size:0.75rem;color:var(--gray);margin-top:6px">Reinicia la página tras guardar para aplicar.</p>
     </div>
 
     <div class="stat-row">
@@ -923,14 +919,15 @@
   import { getDatabase, ref, push, set, onValue, remove, update }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
+  const _savedFbCfg = JSON.parse(localStorage.getItem('ochoa_fb_config') || '{}');
   const firebaseConfig = {
-    apiKey: "AIzaSyAK_gwDR4E9gW7FAwv0nWjJQuhl5XLAc-8",
-    authDomain: "ochoa-arroz-con-leche.firebaseapp.com",
-    databaseURL: localStorage.getItem('ochoa_firebase_url') || "https://ochoa-arroz-con-leche-default-rtdb.firebaseio.com",
-    projectId: "ochoa-arroz-con-leche",
-    storageBucket: "ochoa-arroz-con-leche.firebasestorage.app",
-    messagingSenderId: "428543057210",
-    appId: "1:428543057210:web:dad8f8e989c5f73fc74403"
+    apiKey:            _savedFbCfg.apiKey            || "AIzaSyAK_gwDR4E9gW7FAwv0nWjJQuhl5XLAc-8",
+    authDomain:        _savedFbCfg.authDomain        || "ochoa-arroz-con-leche.firebaseapp.com",
+    databaseURL:       _savedFbCfg.databaseURL       || localStorage.getItem('ochoa_firebase_url') || "https://ochoa-arroz-con-leche-default-rtdb.firebaseio.com",
+    projectId:         _savedFbCfg.projectId         || "ochoa-arroz-con-leche",
+    storageBucket:     _savedFbCfg.storageBucket     || "ochoa-arroz-con-leche.firebasestorage.app",
+    messagingSenderId: _savedFbCfg.messagingSenderId || "428543057210",
+    appId:             _savedFbCfg.appId             || "1:428543057210:web:dad8f8e989c5f73fc74403"
   };
 
   const app = initializeApp(firebaseConfig);
@@ -1144,7 +1141,14 @@
   }
 
   function guardarFechaEntrega(val) {
-    localStorage.setItem('ochoa_fecha_entrega', val.trim());
+    if (!val) { localStorage.removeItem('ochoa_fecha_entrega'); mostrarFechaBanner(); return; }
+    // Formatear YYYY-MM-DD → "Sábado 7 de junio"
+    const [y, m, d] = val.split('-').map(Number);
+    const fecha = new Date(y, m - 1, d);
+    const fmt = fecha.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const texto = fmt.charAt(0).toUpperCase() + fmt.slice(1);
+    localStorage.setItem('ochoa_fecha_entrega', texto);
+    localStorage.setItem('ochoa_fecha_entrega_raw', val);
     mostrarFechaBanner();
   }
 
@@ -1163,11 +1167,27 @@
     const inp = document.getElementById('precio-config');
     if (inp) inp.value = p === '0' ? '' : p;
     const fe = document.getElementById('fecha-entrega-config');
-    if (fe) fe.value = localStorage.getItem('ochoa_fecha_entrega') || '';
+    if (fe) fe.value = localStorage.getItem('ochoa_fecha_entrega_raw') || '';
     const wa = document.getElementById('wa-num-config');
     if (wa) wa.value = localStorage.getItem('ochoa_wa_num') || '';
-    const fb = document.getElementById('firebase-url-config');
-    if (fb) fb.value = localStorage.getItem('ochoa_firebase_url') || '';
+  }
+
+  function guardarFirebaseConfig() {
+    const keys = ['apiKey','databaseURL','authDomain','projectId','storageBucket','messagingSenderId','appId'];
+    const cfg = {};
+    keys.forEach(k => {
+      const v = (document.getElementById('fb-' + k) || {}).value || '';
+      if (v.trim()) cfg[k] = v.trim();
+    });
+    if (!cfg.databaseURL) {
+      document.getElementById('fb-config-msg').textContent = '⚠️ Database URL es obligatorio';
+      return;
+    }
+    localStorage.setItem('ochoa_fb_config', JSON.stringify(cfg));
+    // También guardar databaseURL por separado (compatibilidad)
+    localStorage.setItem('ochoa_firebase_url', cfg.databaseURL);
+    document.getElementById('fb-config-msg').textContent = '✅ Guardado — recarga la página para conectar';
+    showToast('🔥 Firebase configurado — recarga la página');
   }
 
   // ── TAP SECRETO (10 taps al logo OCHOA) ──
@@ -1199,6 +1219,9 @@
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     const btnAdmin = document.getElementById('btn-admin-tab');
     if (btnAdmin) { btnAdmin.style.display = ''; btnAdmin.classList.add('active'); }
+    // Revelar botón ⚙️
+    const btnCfg = document.getElementById('btn-config-admin');
+    if (btnCfg) btnCfg.style.display = '';
     cargarPrecioConfig();
     renderOrders();
     const card = document.getElementById('config-card');
@@ -1207,6 +1230,17 @@
       setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
     }
     showToast('⚙️ Configuración desbloqueada');
+  }
+
+  function toggleConfig() {
+    const card = document.getElementById('config-card');
+    if (!card) return;
+    const visible = card.style.display !== 'none';
+    card.style.display = visible ? 'none' : 'block';
+    if (!visible) {
+      cargarPrecioConfig();
+      setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    }
   }
 
   // Bloquear menú largo-presión en logo — sin bloquear touchend/click
