@@ -969,7 +969,9 @@
     // Sincronizar a localStorage
     localStorage.setItem('ochoa_orders', JSON.stringify(orders));
     window._ordersCache = orders;
-    if (typeof renderOrders === 'function') renderOrders();
+    const adminVisible = document.getElementById('tab-admin') &&
+      document.getElementById('tab-admin').classList.contains('visible');
+    if (typeof renderOrders === 'function' && adminVisible) renderOrders();
   });
 </script>
 
@@ -1278,7 +1280,6 @@
       return s + p;
     }, 0);
 
-    document.getElementById('stat-total').textContent = orders.length;
     document.getElementById('stat-pending').textContent = pending.length;
     document.getElementById('stat-units').textContent = units;
     document.getElementById('stat-recaudo').textContent = recaudo > 0 ? '$' + recaudo.toLocaleString('es-CO') : '$0';
