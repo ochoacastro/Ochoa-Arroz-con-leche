@@ -309,6 +309,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
     margin-bottom: 16px;
   }
 
@@ -317,6 +319,7 @@
     font-size: 1.2rem;
     color: var(--magenta-dark);
     letter-spacing: 1px;
+    white-space: nowrap;
   }
 
   .badge-count {
@@ -325,9 +328,26 @@
     font-size: 0.75rem;
     font-weight: 900;
     border-radius: 50px;
-    padding: 3px 10px;
+    padding: 5px 12px;
     border: 2px solid var(--black);
+    white-space: nowrap;
   }
+
+  .btn-cierre {
+    padding: 7px 14px;
+    background: var(--black);
+    color: #fff;
+    border: 2px solid var(--black);
+    border-radius: 30px;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 0.78rem;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: background .15s;
+    white-space: nowrap;
+  }
+  .btn-cierre:hover { background: #333; }
 
   .filter-row {
     display: flex;
@@ -507,20 +527,6 @@
     margin-top: 4px;
   }
 
-  .btn-cierre {
-    padding: 7px 14px;
-    background: var(--black);
-    color: #fff;
-    border: 2px solid var(--black);
-    border-radius: 30px;
-    font-family: 'Nunito', sans-serif;
-    font-weight: 800;
-    font-size: 0.78rem;
-    cursor: pointer;
-    letter-spacing: 0.5px;
-    transition: background .15s;
-  }
-  .btn-cierre:hover { background: #333; }
 
   /* ── MODAL QR ── */
   #modal-qr {
@@ -831,11 +837,13 @@
   <section id="tab-admin">
 
     <div class="admin-header">
-      <h2>📋 PEDIDOS</h2>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button id="btn-config-admin" onclick="toggleConfig()" style="display:none;background:none;border:2px solid #ccc;border-radius:50%;width:34px;height:34px;font-size:1rem;cursor:pointer;padding:0">⚙️</button>
+      <div style="display:flex;align-items:center;gap:8px">
+        <h2>📋 PEDIDOS</h2>
+        <button id="btn-config-admin" onclick="toggleConfig()" style="display:none;background:none;border:2px solid #ccc;border-radius:50%;width:34px;height:34px;font-size:1rem;cursor:pointer;padding:0;flex-shrink:0">⚙️</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
         <span class="badge-count" id="badge-pendiente">0 pendientes</span>
-        <button class="btn-cierre" style="background:var(--magenta);border-color:var(--magenta)" onclick="abrirQR()">📲 QR</button>
+        <button class="btn-cierre" style="background:var(--magenta);border-color:var(--magenta);color:#fff" onclick="abrirQR()">📲 QR</button>
         <button class="btn-cierre" onclick="cerrarDia()">🌙 Cerrar día</button>
       </div>
     </div>
@@ -857,6 +865,14 @@
       <input type="date" id="fecha-entrega-config"
         oninput="guardarFechaEntrega(this.value)"
         style="margin-top:4px">
+      <label style="margin-top:14px;display:block">🖼️ Logo del negocio</label>
+      <div style="margin-top:6px;margin-bottom:14px;display:flex;align-items:center;gap:12px">
+        <label style="padding:8px 16px;background:var(--magenta);color:#fff;border:2px solid var(--black);border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.82rem;cursor:pointer;text-transform:uppercase;letter-spacing:1px;margin:0">
+          📁 Subir logo
+          <input type="file" accept="image/*" id="logo-upload-input" style="display:none" onchange="cargarLogo(this)">
+        </label>
+        <button onclick="borrarLogo()" style="padding:7px 14px;background:transparent;border:2px solid #ddd;border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.78rem;cursor:pointer;color:var(--gray)">🗑 Quitar</button>
+      </div>
       <label style="margin-top:14px;display:block">📱 Tu número WhatsApp (recibe pedidos)</label>
       <div style="display:flex;align-items:center;gap:0;margin-top:4px">
         <span style="padding:10px 12px;background:#f0f0f0;border:2px solid #ddd;border-right:none;border-radius:12px 0 0 12px;font-weight:800;font-size:0.95rem;color:var(--magenta-dark);white-space:nowrap">+57</span>
@@ -1104,13 +1120,8 @@
     msg += `━━━━━━━━━━━━━━━━━━━━`;
 
     const waUrl = `https://wa.me/${waNum.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`;
-    const telDigits = telefono.replace(/\D/g,'');
-    const telWa = telDigits.startsWith('57') ? telDigits : '57' + telDigits;
-    const waClientUrl = `https://wa.me/${telWa}?text=${encodeURIComponent(msg)}`;
-    // Abrir negocio en pestaña nueva (puede ser bloqueado por el navegador)
-    if (waNum.replace(/\D/g,'')) window.open(waUrl, '_blank');
-    // Abrir chat del cliente en la ventana actual — siempre funciona en móvil
-    setTimeout(() => { window.location.href = waClientUrl; }, 400);
+    // Abrir WhatsApp del negocio para recibir el pedido
+    if (waNum.replace(/\D/g,'')) window.location.href = waUrl;
 
     showToast('🎉 ¡Pedido registrado! Abriendo WhatsApp…');
   }
@@ -1731,6 +1742,38 @@
       } catch { descargarQR(); }
     }
   }
+
+  function cargarLogo(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      localStorage.setItem('ochoa_logo', dataUrl);
+      aplicarLogo(dataUrl);
+      showToast('🖼️ Logo actualizado');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function borrarLogo() {
+    localStorage.removeItem('ochoa_logo');
+    const img = document.getElementById('logo-tap');
+    if (img) img.src = img.dataset.defaultSrc || img.src;
+    showToast('🗑 Logo eliminado — recarga para ver el original');
+    location.reload();
+  }
+
+  function aplicarLogo(src) {
+    const img = document.getElementById('logo-tap');
+    if (img && src) img.src = src;
+  }
+
+  // ── INIT LOGO ──
+  (function() {
+    const saved = localStorage.getItem('ochoa_logo');
+    if (saved) aplicarLogo(saved);
+  })();
 
   // Init
   changeQty(0);
