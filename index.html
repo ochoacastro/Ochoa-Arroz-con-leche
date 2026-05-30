@@ -1119,9 +1119,11 @@
     if (nota) msg += `💬 *Nota:* ${nota}\n`;
     msg += `━━━━━━━━━━━━━━━━━━━━`;
 
-    const waUrl = `https://wa.me/${waNum.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`;
+    const waDigits = waNum.replace(/\D/g,'');
+    const waFull = waDigits.startsWith('57') ? waDigits : '57' + waDigits;
+    const waUrl = `https://wa.me/${waFull}?text=${encodeURIComponent(msg)}`;
     // Abrir WhatsApp del negocio para recibir el pedido
-    if (waNum.replace(/\D/g,'')) window.location.href = waUrl;
+    if (waDigits) window.location.href = waUrl;
 
     showToast('🎉 ¡Pedido registrado! Abriendo WhatsApp…');
   }
@@ -1367,7 +1369,11 @@
           <span class="order-qty-badge">🍚 ×${o.cantidad}${totalPedido ? ' · ' + totalPedido : ''}</span>
         </div>
         <div class="order-details">
-          <span>📍 ${escHtml(o.direccion)}</span>
+          <span style="display:flex;align-items:center;gap:6px">
+            📍 ${escHtml(o.direccion)}
+            <button onclick="navigator.clipboard.writeText('${escHtml(o.direccion).replace(/'/g,"\\'")}').then(()=>showToast('📋 Dirección copiada'))" title="Copiar dirección"
+              style="background:none;border:none;cursor:pointer;padding:0 0 0 2px;font-size:0.85rem;line-height:1;color:var(--magenta);display:inline-flex;align-items:center;">📋</button>
+          </span>
           <span style="display:flex;align-items:center;gap:6px">
             📞 ${escHtml(o.telefono)}
             <button onclick="editarTelefono(${o.id}, '${escHtml(o.telefono)}')" title="Editar teléfono"
