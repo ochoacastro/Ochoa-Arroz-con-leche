@@ -623,6 +623,17 @@
     padding: 20px;
   }
   #modal-cierre.open { display: flex; }
+  #modal-delete {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    z-index: 300;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #modal-delete.open { display: flex; }
 
   .modal-box {
     background: #fff;
@@ -917,6 +928,18 @@
   </div>
 </div>
 
+<div id="modal-delete">
+  <div class="modal-box">
+    <h3>🗑 ELIMINAR PEDIDO</h3>
+    <div class="modal-resumen" id="modal-delete-txt"></div>
+    <p class="modal-warning">⚠️ Esta acción no se puede deshacer.</p>
+    <div class="modal-btns">
+      <button class="btn-cancelar-modal" onclick="cerrarModalDelete()">Cancelar</button>
+      <button class="btn-confirmar-cierre" style="background:#c00" onclick="confirmarDelete()">Sí, eliminar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast">✅ ¡Pedido registrado!</div>
 
 <!-- Firebase SDK -->
@@ -1081,7 +1104,13 @@
     msg += `━━━━━━━━━━━━━━━━━━━━`;
 
     const waUrl = `https://wa.me/${waNum.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`;
-    setTimeout(() => window.open(waUrl, '_blank'), 300);
+    const telDigits = telefono.replace(/\D/g,'');
+    const telWa = telDigits.startsWith('57') ? telDigits : '57' + telDigits;
+    const waClientUrl = `https://wa.me/${telWa}?text=${encodeURIComponent(msg)}`;
+    // Abrir negocio en pestaña nueva (puede ser bloqueado por el navegador)
+    if (waNum.replace(/\D/g,'')) window.open(waUrl, '_blank');
+    // Abrir chat del cliente en la ventana actual — siempre funciona en móvil
+    setTimeout(() => { window.location.href = waClientUrl; }, 400);
 
     showToast('🎉 ¡Pedido registrado! Abriendo WhatsApp…');
   }
@@ -1434,8 +1463,27 @@
     }
   }
 
+  let _deleteTargetId = null;
+
   function deleteOrder(id) {
-    if (!confirm('¿Eliminar este pedido?')) return;
+    const orders = getOrders();
+    const o = orders.find(x => x.id === id);
+    if (!o) return;
+    _deleteTargetId = id;
+    document.getElementById('modal-delete-txt').innerHTML =
+      `<strong>${escHtml(o.nombre)}</strong><br>📍 ${escHtml(o.direccion)}<br>🍚 ×${o.cantidad}`;
+    document.getElementById('modal-delete').classList.add('open');
+  }
+
+  function cerrarModalDelete() {
+    _deleteTargetId = null;
+    document.getElementById('modal-delete').classList.remove('open');
+  }
+
+  function confirmarDelete() {
+    const id = _deleteTargetId;
+    cerrarModalDelete();
+    if (id === null) return;
     const orders = getOrders();
     const o = orders.find(x => x.id === id);
     if (window._fbDB && o && o.fbKey) {
@@ -1445,6 +1493,7 @@
       saveOrders(orders.filter(x => x.id !== id));
       renderOrders();
     }
+    showToast('🗑 Pedido eliminado');
   }
 
   // ── CIERRE DE DÍA ──
