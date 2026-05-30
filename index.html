@@ -564,8 +564,8 @@
   #qr-canvas-ochoa {
     border: 2px solid #eee;
     border-radius: 12px;
-    width: 240px;
-    height: 240px;
+    width: 280px;
+    height: 280px;
     display: block;
     margin: 0 auto 14px;
   }
@@ -1616,9 +1616,13 @@
     const { mat, size: sz } = qrBuildMatrix(version, bits, ec, mask);
 
     const canvas = document.getElementById(canvasId);
-    canvas.width = size; canvas.height = size;
+    const dpr = Math.max(window.devicePixelRatio || 1, 3);
+    const px = size * dpr;
+    canvas.width = px; canvas.height = px;
+    canvas.style.width = size + 'px'; canvas.style.height = size + 'px';
     const ctx = canvas.getContext('2d');
-    const quiet = 3;
+    ctx.scale(dpr, dpr);
+    const quiet = 4;
     const total = sz + quiet * 2;
     const ms = size / total;
 
@@ -1629,8 +1633,8 @@
     const fps = [{r:0,c:0},{r:0,c:sz-7},{r:sz-7,c:0}];
     function inFinder(r,c){return fps.some(f=>r>=f.r&&r<f.r+7&&c>=f.c&&c<f.c+7);}
 
-    // Módulos de datos (estilo round, magenta oscuro)
-    ctx.fillStyle = '#8f0e4e';
+    // Módulos de datos (negro)
+    ctx.fillStyle = '#111111';
     for(let r=0;r<sz;r++)for(let c=0;c<sz;c++){
       if(inFinder(r,c)||mat[r][c]!==1)continue;
       const x=(c+quiet)*ms, y=(r+quiet)*ms;
@@ -1673,7 +1677,7 @@
       ctx.lineTo(x+g,y+g+br2);ctx.quadraticCurveTo(x+g,y+g,x+g+br2,y+g);ctx.closePath();ctx.fill();
       // Inner dot
       const d=ms*2.5, cx2=x+w/2, cy2=y+w/2, br3=ms*0.7;
-      ctx.fillStyle='#8f0e4e';
+      ctx.fillStyle='#111111';
       ctx.beginPath();
       ctx.moveTo(cx2-d/2+br3,cy2-d/2);ctx.lineTo(cx2+d/2-br3,cy2-d/2);ctx.quadraticCurveTo(cx2+d/2,cy2-d/2,cx2+d/2,cy2-d/2+br3);
       ctx.lineTo(cx2+d/2,cy2+d/2-br3);ctx.quadraticCurveTo(cx2+d/2,cy2+d/2,cx2+d/2-br3,cy2+d/2);
@@ -1687,13 +1691,13 @@
     const url = localStorage.getItem('ochoa_qr_url') || window.location.href;
     document.getElementById('qr-url-input').value = url;
     document.getElementById('modal-qr').classList.add('open');
-    qrRenderCanvas('qr-canvas-ochoa', url, 240);
+    qrRenderCanvas('qr-canvas-ochoa', url, 280);
   }
 
   function regenerarQR(url) {
     if (!url) return;
     localStorage.setItem('ochoa_qr_url', url);
-    try { qrRenderCanvas('qr-canvas-ochoa', url, 240); } catch(e) {}
+    try { qrRenderCanvas('qr-canvas-ochoa', url, 280); } catch(e) {}
   }
 
   function descargarQR() {
