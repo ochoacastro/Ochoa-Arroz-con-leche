@@ -799,7 +799,10 @@
       </div>
       <div class="form-group">
         <label>Teléfono / WhatsApp</label>
-        <input type="tel" id="f-telefono" placeholder="Ej: 300 123 4567" maxlength="20">
+        <div style="display:flex;align-items:center;gap:0">
+          <span style="padding:10px 12px;background:#f0f0f0;border:2px solid #ddd;border-right:none;border-radius:10px 0 0 10px;font-weight:800;font-size:0.95rem;color:var(--magenta-dark);white-space:nowrap;line-height:1.4">+57</span>
+          <input type="tel" id="f-telefono" placeholder="300 123 4567" maxlength="15" style="border-radius:0 10px 10px 0;border-left:none;margin-top:0">
+        </div>
       </div>
       <div class="form-group">
         <label>Notas adicionales</label>
@@ -844,9 +847,12 @@
         oninput="guardarFechaEntrega(this.value)"
         style="margin-top:4px">
       <label style="margin-top:14px;display:block">📱 Tu número WhatsApp (recibe pedidos)</label>
-      <input type="tel" id="wa-num-config" placeholder="Ej: 573001234567 (con código país)"
-        maxlength="20" oninput="localStorage.setItem('ochoa_wa_num', this.value)"
-        style="margin-top:4px">
+      <div style="display:flex;align-items:center;gap:0;margin-top:4px">
+        <span style="padding:10px 12px;background:#f0f0f0;border:2px solid #ddd;border-right:none;border-radius:12px 0 0 12px;font-weight:800;font-size:0.95rem;color:var(--magenta-dark);white-space:nowrap">+57</span>
+        <input type="tel" id="wa-num-config" placeholder="3001234567" maxlength="10"
+          style="margin-top:0;border-radius:0 12px 12px 0;border-left:none"
+          oninput="guardarWaNum(this.value)">
+      </div>
     </div>
 
     <div class="stat-row">
@@ -1014,7 +1020,8 @@
   function enviarPedido() {
     const nombre = document.getElementById('f-nombre').value.trim();
     const direccion = document.getElementById('f-direccion').value.trim();
-    const telefono = document.getElementById('f-telefono').value.trim();
+    const telefonoRaw = document.getElementById('f-telefono').value.trim();
+    const telefono = telefonoRaw ? ('+57' + telefonoRaw.replace(/^(\+57|57)/, '').replace(/\D/g, '')) : '';
     const nota = document.getElementById('f-nota').value.trim();
 
     if (!nombre || !direccion || !telefono) {
@@ -1171,7 +1178,16 @@
     const fe = document.getElementById('fecha-entrega-config');
     if (fe) fe.value = localStorage.getItem('ochoa_fecha_entrega_raw') || '';
     const wa = document.getElementById('wa-num-config');
-    if (wa) wa.value = localStorage.getItem('ochoa_wa_num') || '';
+    if (wa) {
+      const saved = localStorage.getItem('ochoa_wa_num') || '';
+      // Mostrar solo los dígitos sin el 57 del prefijo
+      wa.value = saved.replace(/^57/, '');
+    }
+  }
+
+  function guardarWaNum(val) {
+    const digits = val.replace(/\D/g, '');
+    localStorage.setItem('ochoa_wa_num', '57' + digits);
   }
 
   function guardarFirebaseConfig() {
@@ -1304,14 +1320,19 @@
       return `
       <div class="order-item ${o.entregado ? 'delivered' : ''}" id="oi-${o.id}">
         <div class="order-top">
-          <span class="order-name">${escHtml(o.nombre)}</span>
+          <span class="order-name">${escHtml(o.nombre)}
+            <button onclick="editarNombre(${o.id}, '${escHtml(o.nombre)}')" title="Editar nombre"
+              style="background:none;border:none;cursor:pointer;padding:0 0 0 4px;font-size:0.8rem;line-height:1;color:var(--magenta);vertical-align:middle;">✏️</button>
+          </span>
           <span class="order-qty-badge">🍚 ×${o.cantidad}${totalPedido ? ' · ' + totalPedido : ''}</span>
         </div>
         <div class="order-details">
           <span>📍 ${escHtml(o.direccion)}</span>
           <span style="display:flex;align-items:center;gap:6px">
             📞 ${escHtml(o.telefono)}
-            <a href="https://wa.me/${o.telefono.replace(/\D/g,'')}" target="_blank" rel="noopener"
+            <button onclick="editarTelefono(${o.id}, '${escHtml(o.telefono)}')" title="Editar teléfono"
+              style="background:none;border:none;cursor:pointer;padding:0;font-size:0.85rem;line-height:1;color:var(--magenta);display:inline-flex;align-items:center;">✏️</button>
+            <a href="${(d => `https://wa.me/${d.startsWith('57')?d:'57'+d}`)(o.telefono.replace(/\D/g,''))}" target="_blank" rel="noopener"
                title="Abrir WhatsApp con este cliente"
                style="display:inline-flex;align-items:center;text-decoration:none;flex-shrink:0">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="22" height="22">
@@ -1326,6 +1347,7 @@
         <div class="order-footer">
           <span class="order-date">🕐 ${o.fecha}</span>
           <div style="display:flex;gap:8px">
+            <button class="btn-delete" onclick="reenviarPedido(${o.id})" title="Reenviar por WhatsApp" style="border-color:#25D366;color:#25D366">📤</button>
             <button class="btn-delete" onclick="deleteOrder(${o.id})">🗑</button>
             <button class="btn-deliver ${o.entregado ? 'done' : 'pending'}" onclick="toggleEntregado(${o.id})">
               ${o.entregado ? '✅ Entregado' : '📦 Marcar entregado'}
@@ -1334,6 +1356,67 @@
         </div>
       </div>
     `}).join('');
+  }
+
+  function editarNombre(id, nombreActual) {
+    const nuevo = prompt('Editar nombre:', nombreActual);
+    if (nuevo === null) return;
+    const nombre = nuevo.trim();
+    if (!nombre) { showToast('⚠️ El nombre no puede quedar vacío'); return; }
+    const orders = getOrders();
+    const o = orders.find(x => x.id === id);
+    if (!o) return;
+    o.nombre = nombre;
+    if (window._fbDB && o.fbKey) {
+      const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
+      window._fbUpdate(pedidoRef, { nombre });
+    } else {
+      saveOrders(orders);
+      renderOrders();
+    }
+    showToast('👤 Nombre actualizado');
+  }
+
+  function reenviarPedido(id) {
+    const orders = getOrders();
+    const o = orders.find(x => x.id === id);
+    if (!o) return;
+    const currentPrice = getPrice();
+    const total = o.total != null ? o.total : (currentPrice > 0 ? o.cantidad * currentPrice : null);
+    let msg = `🍚 *OCHOA – Arroz con Leche*\n`;
+    msg += `━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += `🔄 *CONFIRMACIÓN DE PEDIDO*\n\n`;
+    msg += `👤 *Nombre:* ${o.nombre}\n`;
+    msg += `📍 *Dirección:* ${o.direccion}\n`;
+    msg += `📞 *Teléfono:* ${o.telefono}\n`;
+    msg += `🍚 *Cantidad:* ${o.cantidad} unidad${o.cantidad > 1 ? 'es' : ''}\n`;
+    if (total) msg += `💵 *Total:* $${total.toLocaleString('es-CO')}\n`;
+    if (o.fechaEntrega) msg += `📅 *Fecha de entrega:* ${o.fechaEntrega}\n`;
+    if (o.nota) msg += `💬 *Nota:* ${o.nota}\n`;
+    msg += `━━━━━━━━━━━━━━━━━━━━`;
+    const digits = o.telefono.replace(/\D/g,'');
+    const waNum = digits.startsWith('57') ? digits : '57' + digits;
+    const waUrl = `https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, '_blank');
+  }
+
+  function editarTelefono(id, telActual) {
+    const nuevo = prompt('Editar teléfono:', telActual);
+    if (nuevo === null) return; // canceló
+    const tel = nuevo.trim();
+    if (!tel) { showToast('⚠️ El teléfono no puede quedar vacío'); return; }
+    const orders = getOrders();
+    const o = orders.find(x => x.id === id);
+    if (!o) return;
+    o.telefono = tel;
+    if (window._fbDB && o.fbKey) {
+      const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
+      window._fbUpdate(pedidoRef, { telefono: tel });
+    } else {
+      saveOrders(orders);
+      renderOrders();
+    }
+    showToast('📞 Teléfono actualizado');
   }
 
   function toggleEntregado(id) {
