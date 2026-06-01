@@ -1395,7 +1395,11 @@
           </span>
           ${o.fechaEntrega ? `<span>📅 ${escHtml(o.fechaEntrega)}</span>` : ''}
         </div>
-        ${o.nota ? `<div class="order-note">💬 ${escHtml(o.nota)}</div>` : ''}
+        <div class="order-note" style="${o.nota ? '' : 'background:none;border-left:none;padding:0;margin-top:4px'}">
+          ${o.nota ? `💬 ${escHtml(o.nota)}` : ''}
+          <button onclick="editarNota(${o.id}, '${(o.nota||'').replace(/'/g,"\\'")}')" title="Editar nota"
+            style="background:none;border:none;cursor:pointer;padding:0 0 0 ${o.nota ? '6px' : '0'};font-size:0.82rem;line-height:1;color:var(--magenta);vertical-align:middle;">✏️ ${o.nota ? '' : '<span style=\'font-size:0.75rem;font-weight:700\'>agregar nota</span>'}</button>
+        </div>
         <div class="order-footer">
           <span class="order-date">🕐 ${o.fecha}</span>
           <div style="display:flex;gap:8px">
@@ -1511,6 +1515,24 @@
       renderOrders();
     }
     showToast('🍚 Cantidad actualizada');
+  }
+
+  function editarNota(id, notaActual) {
+    const nuevo = prompt('Editar nota adicional:', notaActual);
+    if (nuevo === null) return;
+    const nota = nuevo.trim();
+    const orders = getOrders();
+    const o = orders.find(x => x.id === id);
+    if (!o) return;
+    o.nota = nota;
+    if (window._fbDB && o.fbKey) {
+      const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
+      window._fbUpdate(pedidoRef, { nota });
+    } else {
+      saveOrders(orders);
+      renderOrders();
+    }
+    showToast('💬 Nota actualizada');
   }
 
   function toggleEntregado(id) {
