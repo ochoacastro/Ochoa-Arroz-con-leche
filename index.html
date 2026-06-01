@@ -1094,14 +1094,6 @@
       saveOrders(orders);
     }
 
-    // Reset form
-    document.getElementById('f-nombre').value = '';
-    document.getElementById('f-direccion').value = '';
-    document.getElementById('f-telefono').value = '';
-    document.getElementById('f-nota').value = '';
-    qty = 1;
-    changeQty(0);
-
     // ── Armar mensaje WhatsApp ──
     const waNum = localStorage.getItem('ochoa_wa_num') || '';
     let msg = `🍚 *OCHOA – Arroz con Leche*\n`;
@@ -1122,6 +1114,15 @@
     const waDigits = waNum.replace(/\D/g,'');
     const waFull = waDigits.startsWith('57') ? waDigits : '57' + waDigits;
     const waUrl = `https://wa.me/${waFull}?text=${encodeURIComponent(msg)}`;
+
+    // Reset form
+    document.getElementById('f-nombre').value = '';
+    document.getElementById('f-direccion').value = '';
+    document.getElementById('f-telefono').value = '';
+    document.getElementById('f-nota').value = '';
+    qty = 1;
+    changeQty(0);
+
     // Abrir WhatsApp del negocio para recibir el pedido
     if (waDigits) window.location.href = waUrl;
 
@@ -1366,13 +1367,18 @@
             <button onclick="editarNombre(${o.id}, '${escHtml(o.nombre)}')" title="Editar nombre"
               style="background:none;border:none;cursor:pointer;padding:0 0 0 4px;font-size:0.8rem;line-height:1;color:var(--magenta);vertical-align:middle;">✏️</button>
           </span>
-          <span class="order-qty-badge">🍚 ×${o.cantidad}${totalPedido ? ' · ' + totalPedido : ''}</span>
+          <span class="order-qty-badge" style="display:inline-flex;align-items:center;gap:6px">🍚 ×${o.cantidad}${totalPedido ? ' · ' + totalPedido : ''}
+            <button onclick="editarCantidad(${o.id}, ${o.cantidad})" title="Editar cantidad"
+              style="background:none;border:none;cursor:pointer;padding:0;font-size:0.8rem;line-height:1;color:#fff;display:inline-flex;align-items:center;">✏️</button>
+          </span>
         </div>
         <div class="order-details">
           <span style="display:flex;align-items:center;gap:6px">
             📍 ${escHtml(o.direccion)}
             <button onclick="navigator.clipboard.writeText('${escHtml(o.direccion).replace(/'/g,"\\'")}').then(()=>showToast('📋 Dirección copiada'))" title="Copiar dirección"
               style="background:none;border:none;cursor:pointer;padding:0 0 0 2px;font-size:0.85rem;line-height:1;color:var(--magenta);display:inline-flex;align-items:center;">📋</button>
+            <button onclick="editarDireccion(${o.id}, '${escHtml(o.direccion).replace(/'/g,"\\'")}');" title="Editar dirección"
+              style="background:none;border:none;cursor:pointer;padding:0;font-size:0.85rem;line-height:1;color:var(--magenta);display:inline-flex;align-items:center;">✏️</button>
           </span>
           <span style="display:flex;align-items:center;gap:6px">
             📞 ${escHtml(o.telefono)}
@@ -1463,6 +1469,48 @@
       renderOrders();
     }
     showToast('📞 Teléfono actualizado');
+  }
+
+  function editarDireccion(id, dirActual) {
+    const nuevo = prompt('Editar dirección:', dirActual);
+    if (nuevo === null) return;
+    const dir = nuevo.trim();
+    if (!dir) { showToast('⚠️ La dirección no puede quedar vacía'); return; }
+    const orders = getOrders();
+    const o = orders.find(x => x.id === id);
+    if (!o) return;
+    o.direccion = dir;
+    if (window._fbDB && o.fbKey) {
+      const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
+      window._fbUpdate(pedidoRef, { direccion: dir });
+    } else {
+      saveOrders(orders);
+      renderOrders();
+    }
+    showToast('📍 Dirección actualizada');
+  }
+
+  function editarCantidad(id, cantActual) {
+    const nuevo = prompt('Editar cantidad:', cantActual);
+    if (nuevo === null) return;
+    const cant = parseInt(nuevo.trim(), 10);
+    if (isNaN(cant) || cant < 1) { showToast('⚠️ Ingresa una cantidad válida (mínimo 1)'); return; }
+    const orders = getOrders();
+    const o = orders.find(x => x.id === id);
+    if (!o) return;
+    o.cantidad = cant;
+    // Recalcular total si hay precio
+    if (o.precioUnit > 0) o.total = cant * o.precioUnit;
+    const updates = { cantidad: cant };
+    if (o.precioUnit > 0) updates.total = o.total;
+    if (window._fbDB && o.fbKey) {
+      const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
+      window._fbUpdate(pedidoRef, updates);
+    } else {
+      saveOrders(orders);
+      renderOrders();
+    }
+    showToast('🍚 Cantidad actualizada');
   }
 
   function toggleEntregado(id) {
