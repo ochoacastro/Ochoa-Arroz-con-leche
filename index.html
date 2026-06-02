@@ -353,12 +353,14 @@
 
   .filter-row {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 16px;
   }
 
   .filter-btn {
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: calc(50% - 8px);
     padding: 8px;
     border: 2px solid var(--black);
     border-radius: 30px;
@@ -373,161 +375,223 @@
   }
 
   .filter-btn.active { background: var(--magenta); color: #fff; }
+  .filter-btn#f-sincobrar.active { background: var(--unpaid); }
 
   /* ── ORDER CARD ── */
   .order-item {
     background: #fff;
-    border: 2.5px solid var(--black);
-    border-radius: 14px;
-    padding: 16px;
+    border: 2px solid #e8e0ec;
+    border-radius: 16px;
     margin-bottom: 14px;
-    box-shadow: 3px 3px 0 var(--black);
-    transition: opacity .3s;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
+    transition: box-shadow .2s;
   }
+  .order-item:hover { box-shadow: 0 4px 16px rgba(192,24,106,.13); }
 
-  .order-item.delivered {
-    border-color: var(--delivered);
-    box-shadow: 3px 3px 0 var(--delivered);
-    opacity: .7;
-  }
+  /* Barra de acento lateral izquierda */
+  .order-item { border-left: 5px solid var(--magenta); }
+  .order-item.delivered { border-left-color: var(--delivered); }
+  .order-item.delivered.unpaid { border-left-color: var(--unpaid); background: var(--unpaid-light); }
 
-  /* Entregado pero NO pagado — resaltado naranja */
-  .order-item.delivered.unpaid {
-    border-color: var(--unpaid);
-    box-shadow: 3px 3px 0 var(--unpaid);
-    background: var(--unpaid-light);
-    opacity: 1;
-  }
-
-  .badge-pago {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.72rem;
-    font-weight: 900;
-    border-radius: 50px;
-    padding: 3px 9px;
-    border: 2px solid var(--black);
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-  .badge-pago.pagado { background: #d4f5e5; color: #1a7a4a; border-color: #1a7a4a; }
-  .badge-pago.pendiente-cobro { background: #fff0d0; color: #a05c00; border-color: var(--unpaid); }
-
-  .btn-pago {
-    padding: 7px 14px;
-    border: 2px solid var(--black);
-    border-radius: 30px;
-    font-family: 'Nunito', sans-serif;
-    font-weight: 800;
-    font-size: 0.78rem;
-    cursor: pointer;
-    transition: background .15s, color .15s;
+  /* ── CARD HEADER ── */
+  .order-header {
     display: flex;
     align-items: center;
-    gap: 5px;
-    white-space: nowrap;
-  }
-  .btn-pago.cobrar { background: var(--unpaid); color: #fff; border-color: var(--unpaid); }
-  .btn-pago.cobrado { background: #d4f5e5; color: #1a7a4a; border-color: #1a7a4a; }
-
-  .order-top {
-    display: flex;
-    align-items: flex-start;
     justify-content: space-between;
+    padding: 12px 14px 10px;
+    border-bottom: 1.5px solid #f0eaf4;
     gap: 10px;
   }
 
-  .order-name {
-    font-family: 'Black Han Sans', sans-serif;
-    font-size: 1.05rem;
-    letter-spacing: 1px;
-  }
+  .order-header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
 
-  .order-qty-badge {
-    background: var(--magenta);
-    color: #fff;
-    border: 2px solid var(--black);
-    border-radius: 8px;
-    padding: 3px 10px;
-    font-weight: 900;
-    font-size: 0.85rem;
-    white-space: nowrap;
+  .order-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--light);
+    border: 2px solid var(--magenta);
+    display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }
+  .order-item.delivered .order-avatar { border-color: var(--delivered); }
+  .order-item.delivered.unpaid .order-avatar { border-color: var(--unpaid); }
 
-  .order-item.delivered .order-qty-badge {
-    background: var(--delivered);
-  }
+  .order-name-wrap { min-width: 0; }
 
-  .order-details {
-    margin-top: 8px;
-    font-size: 0.88rem;
-    color: #444;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-  }
-
-  .order-details span { display: flex; align-items: center; gap: 6px; }
-
-  .order-note {
-    margin-top: 8px;
-    background: var(--light);
-    border-left: 3px solid var(--magenta);
-    padding: 6px 10px;
-    border-radius: 0 8px 8px 0;
-    font-size: 0.85rem;
-    font-style: italic;
-    color: #555;
-  }
-
-  .order-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 12px;
-  }
-
-  .order-date { font-size: 0.78rem; color: var(--gray); font-weight: 700; }
-
-  .btn-deliver {
-    padding: 7px 18px;
-    border: 2px solid var(--black);
-    border-radius: 30px;
-    font-family: 'Nunito', sans-serif;
-    font-weight: 800;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: background .15s, color .15s;
+  .order-name {
+    font-family: 'Black Han Sans', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 0.8px;
+    color: var(--black);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     display: flex;
     align-items: center;
     gap: 6px;
   }
 
-  .btn-deliver.pending {
+  .order-time {
+    font-size: 0.7rem;
+    color: var(--gray);
+    font-weight: 700;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .order-header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+  /* Chip cantidad+total */
+  .order-qty-badge {
     background: var(--magenta);
     color: #fff;
+    border-radius: 10px;
+    padding: 5px 12px;
+    font-weight: 900;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.3px;
+  }
+  .order-item.delivered .order-qty-badge { background: var(--delivered); }
+  .order-item.delivered.unpaid .order-qty-badge { background: var(--unpaid); }
+
+  /* Badge pago */
+  .badge-pago {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.68rem; font-weight: 900;
+    border-radius: 50px; padding: 4px 10px;
+    letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap;
+    border: 1.5px solid;
+  }
+  .badge-pago.pagado { background: #d4f5e5; color: #1a7a4a; border-color: #1a7a4a; }
+  .badge-pago.pendiente-cobro { background: #fff0d0; color: #a05c00; border-color: var(--unpaid); }
+
+  /* ── CARD BODY ── */
+  .order-body { padding: 10px 14px 4px; }
+
+  .order-info-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
 
-  .btn-deliver.done {
+  .order-info-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.86rem;
+    color: #333;
+  }
+
+  .info-icon {
+    width: 28px; height: 28px; border-radius: 8px;
     background: var(--light);
-    color: var(--gray);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
   }
 
-  .btn-delete {
-    padding: 7px 12px;
-    border: 2px solid #ddd;
-    border-radius: 30px;
-    background: transparent;
-    font-size: 0.8rem;
+  .info-text {
+    flex: 1; min-width: 0;
+    font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .info-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+
+  .icon-btn {
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    border: 1.5px solid #e0d8ea;
+    background: #fff;
     cursor: pointer;
-    color: var(--gray);
-    transition: border-color .15s, color .15s;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, border-color .15s;
+    flex-shrink: 0;
+  }
+  .icon-btn:hover { background: var(--light); border-color: var(--magenta); }
+
+  .wa-link {
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    background: #25D366;
+    display: flex; align-items: center; justify-content: center;
+    text-decoration: none; flex-shrink: 0;
   }
 
-  .btn-delete:hover { border-color: #c00; color: #c00; }
+  /* ── CARD NOTE ── */
+  .order-note {
+    margin: 8px 0 4px;
+    background: #fdf6fa;
+    border-left: 3px solid var(--magenta);
+    padding: 7px 10px;
+    border-radius: 0 8px 8px 0;
+    font-size: 0.83rem;
+    font-style: italic;
+    color: #555;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .order-note-empty {
+    margin: 6px 0 2px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* ── CARD FOOTER / ACTIONS ── */
+  .order-footer {
+    padding: 10px 14px 12px;
+    border-top: 1.5px solid #f0eaf4;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  .order-footer-left { display: flex; gap: 6px; align-items: center; }
+  .order-footer-right { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+
+  .btn-action {
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 0.78rem;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: background .15s, border-color .15s, transform .1s;
+    border: 1.5px solid;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+  }
+  .btn-action:active { transform: scale(.97); }
+
+  .btn-action.resend   { background: #fff; border-color: #25D366; color: #1a7a4a; }
+  .btn-action.delete   { background: #fff; border-color: #e0d8ea; color: #999; }
+  .btn-action.delete:hover { border-color: #c00; color: #c00; }
+  .btn-action.deliver-pending { background: var(--magenta); border-color: var(--magenta); color: #fff; }
+  .btn-action.deliver-done    { background: #eef9f3; border-color: var(--delivered); color: #1a7a4a; }
+  .btn-action.pay-pending { background: var(--unpaid); border-color: var(--unpaid); color: #fff; }
+  .btn-action.pay-done    { background: #eef9f3; border-color: var(--delivered); color: #1a7a4a; }
+
+  /* Separador vertical en footer */
+  .footer-sep {
+    width: 1px; height: 20px;
+    background: #e8e0ec;
+    flex-shrink: 0;
+  }
+
+  .btn-deliver { display: none; } /* legacy — reemplazado */
+  .btn-delete  { display: none; } /* legacy — reemplazado */
+  .btn-pago    { display: none; } /* legacy — reemplazado */
 
   .empty-state {
     text-align: center;
@@ -960,7 +1024,7 @@
       <button class="filter-btn active" id="f-todos" onclick="setFilter('todos', this)">Todos</button>
       <button class="filter-btn" id="f-pendientes" onclick="setFilter('pendientes', this)">Pendientes</button>
       <button class="filter-btn" id="f-entregados" onclick="setFilter('entregados', this)">Entregados</button>
-      <button class="filter-btn" id="f-sincobrar" onclick="setFilter('sincobrar', this)" style="border-color:var(--unpaid);color:var(--unpaid)">⏳ Sin cobrar</button>
+      <button class="filter-btn" id="f-sincobrar" onclick="setFilter('sincobrar', this)">⏳ Sin cobrar</button>
     </div>
 
     <div id="orders-list"></div>
@@ -1426,70 +1490,118 @@
         ? `$${o.total.toLocaleString('es-CO')}`
         : (currentPrice > 0 ? `$${(o.cantidad * currentPrice).toLocaleString('es-CO')}` : null);
 
-      // Clase visual de la tarjeta
-      const cardClass = o.entregado
-        ? (o.pagado ? 'delivered' : 'delivered unpaid')
+      const cardClass = o.entregado ? (o.pagado ? 'delivered' : 'delivered unpaid') : '';
+
+      const badgePago = o.entregado
+        ? `<span class="badge-pago ${o.pagado ? 'pagado' : 'pendiente-cobro'}">${o.pagado ? 'Pagado' : 'Sin cobrar'}</span>`
         : '';
 
-      // Badge de estado de pago (solo si está entregado)
-      const badgePago = o.entregado
-        ? `<span class="badge-pago ${o.pagado ? 'pagado' : 'pendiente-cobro'}">${o.pagado ? '✅ Pagado' : '⏳ Sin cobrar'}</span>`
-        : '';
+      // SVG icons
+      const svgUser = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>`;
+      const svgPin  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--magenta)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>`;
+      const svgPhone= `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--magenta)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 3.09 5.18 2 2 0 0 1 5.07 3h3a2 2 0 0 1 2 1.72c.12.96.37 1.9.73 2.81a2 2 0 0 1-.45 2.11L9.09 10.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.36 1.85.61 2.81.73A2 2 0 0 1 22 17z"/></svg>`;
+      const svgCal  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--magenta)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+      const svgNote = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--magenta)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
+      const svgClock= `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+      const svgEdit = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--magenta)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+      const svgCopy = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--magenta)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+      const svgWa   = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="14" height="14"><path fill="#fff" d="M34.5 13.5A14.9 14.9 0 0 0 24 9C16.27 9 10 15.27 10 23a13.9 13.9 0 0 0 2 7.2L9 39l9-2.9A14 14 0 0 0 24 37c7.73 0 14-6.27 14-14a13.9 13.9 0 0 0-3.5-9.5zM24 34.6a11.6 11.6 0 0 1-5.9-1.6l-.4-.3-4.2 1.1 1.1-4.1-.3-.4A11.5 11.5 0 0 1 12.4 23c0-6.4 5.2-11.6 11.6-11.6a11.5 11.5 0 0 1 8.2 3.4A11.5 11.5 0 0 1 35.6 23c0 6.4-5.2 11.6-11.6 11.6zm6.4-8.7c-.4-.2-2.1-1-2.4-1.1-.3-.1-.6-.2-.8.2s-.9 1.1-1.1 1.4c-.2.2-.4.2-.8 0a10 10 0 0 1-2.9-1.8 11 11 0 0 1-2-2.5c-.2-.4 0-.6.2-.8l.5-.6.3-.5v-.5l-1.1-2.6c-.3-.7-.6-.6-.8-.6h-.7a1.4 1.4 0 0 0-1 .5 4.2 4.2 0 0 0-1.3 3.1 7.3 7.3 0 0 0 1.5 3.9c.2.2 2.6 4 6.3 5.6a21 21 0 0 0 2.1.8 5 5 0 0 0 2.3.1c.7-.1 2.1-.9 2.4-1.7a3 3 0 0 0 .2-1.7c-.1-.1-.4-.2-.8-.4z"/></svg>`;
+      const svgSend = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
+      const svgTrash= `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
+      const svgCheck= `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+      const svgBox  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73L13 2.27a2 2 0 0 0-2 0L4 6.27A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`;
+      const svgCoin = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`;
+      const svgBowl = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16a1 1 0 0 1 1 1v1a8 8 0 0 1-16 0v-1a1 1 0 0 1 1-1z"/><line x1="12" y1="3" x2="12" y2="7"/><line x1="8" y1="4" x2="9" y2="7"/><line x1="16" y1="4" x2="15" y2="7"/></svg>`;
+
+      const waDigits = o.telefono.replace(/\D/g,'');
+      const waHref = `https://wa.me/${waDigits.startsWith('57')?waDigits:'57'+waDigits}`;
 
       return `
       <div class="order-item ${cardClass}" id="oi-${o.id}">
-        <div class="order-top">
-          <span class="order-name">${escHtml(o.nombre)}
-            <button onclick="editarNombre(${o.id}, '${escHtml(o.nombre)}')" title="Editar nombre"
-              style="background:none;border:none;cursor:pointer;padding:0 0 0 4px;font-size:0.8rem;line-height:1;color:var(--magenta);vertical-align:middle;">✏️</button>
-          </span>
-          <span class="order-qty-badge" style="display:inline-flex;align-items:center;gap:6px">🍚 ×${o.cantidad}${totalPedido ? ' · ' + totalPedido : ''}
-            <button onclick="editarCantidad(${o.id}, ${o.cantidad})" title="Editar cantidad"
-              style="background:none;border:none;cursor:pointer;padding:0;font-size:0.8rem;line-height:1;color:#fff;display:inline-flex;align-items:center;">✏️</button>
-          </span>
-        </div>
-        <div class="order-details">
-          <span style="display:flex;align-items:center;gap:6px">
-            📍 ${escHtml(o.direccion)}
-            <button onclick="navigator.clipboard.writeText('${escHtml(o.direccion).replace(/'/g,"\\'")}').then(()=>showToast('📋 Dirección copiada'))" title="Copiar dirección"
-              style="background:none;border:none;cursor:pointer;padding:0 0 0 2px;font-size:0.85rem;line-height:1;color:var(--magenta);display:inline-flex;align-items:center;">📋</button>
-            <button onclick="editarDireccion(${o.id}, '${escHtml(o.direccion).replace(/'/g,"\\'")}');" title="Editar dirección"
-              style="background:none;border:none;cursor:pointer;padding:0;font-size:0.85rem;line-height:1;color:var(--magenta);display:inline-flex;align-items:center;">✏️</button>
-          </span>
-          <span style="display:flex;align-items:center;gap:6px">
-            📞 ${escHtml(o.telefono)}
-            <button onclick="editarTelefono(${o.id}, '${escHtml(o.telefono)}')" title="Editar teléfono"
-              style="background:none;border:none;cursor:pointer;padding:0;font-size:0.85rem;line-height:1;color:var(--magenta);display:inline-flex;align-items:center;">✏️</button>
-            <a href="${(d => `https://wa.me/${d.startsWith('57')?d:'57'+d}`)(o.telefono.replace(/\D/g,''))}" target="_blank" rel="noopener"
-               title="Abrir WhatsApp con este cliente"
-               style="display:inline-flex;align-items:center;text-decoration:none;flex-shrink:0">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="22" height="22">
-                <circle cx="24" cy="24" r="24" fill="#25D366"/>
-                <path fill="#fff" d="M34.5 13.5A14.9 14.9 0 0 0 24 9C16.27 9 10 15.27 10 23a13.9 13.9 0 0 0 2 7.2L9 39l9-2.9A14 14 0 0 0 24 37c7.73 0 14-6.27 14-14a13.9 13.9 0 0 0-3.5-9.5zM24 34.6a11.6 11.6 0 0 1-5.9-1.6l-.4-.3-4.2 1.1 1.1-4.1-.3-.4A11.5 11.5 0 0 1 12.4 23c0-6.4 5.2-11.6 11.6-11.6a11.5 11.5 0 0 1 8.2 3.4A11.5 11.5 0 0 1 35.6 23c0 6.4-5.2 11.6-11.6 11.6zm6.4-8.7c-.4-.2-2.1-1-2.4-1.1-.3-.1-.6-.2-.8.2s-.9 1.1-1.1 1.4c-.2.2-.4.2-.8 0a10 10 0 0 1-2.9-1.8 11 11 0 0 1-2-2.5c-.2-.4 0-.6.2-.8l.5-.6.3-.5v-.5l-1.1-2.6c-.3-.7-.6-.6-.8-.6h-.7a1.4 1.4 0 0 0-1 .5 4.2 4.2 0 0 0-1.3 3.1 7.3 7.3 0 0 0 1.5 3.9c.2.2 2.6 4 6.3 5.6a21 21 0 0 0 2.1.8 5 5 0 0 0 2.3.1c.7-.1 2.1-.9 2.4-1.7a3 3 0 0 0 .2-1.7c-.1-.1-.4-.2-.8-.4z"/>
-              </svg>
-            </a>
-          </span>
-          ${o.fechaEntrega ? `<span>📅 ${escHtml(o.fechaEntrega)}</span>` : ''}
-        </div>
-        <div class="order-note" style="${o.nota ? '' : 'background:none;border-left:none;padding:0;margin-top:4px'}">
-          ${o.nota ? `💬 ${escHtml(o.nota)}` : ''}
-          <button onclick="editarNota(${o.id}, '${(o.nota||'').replace(/'/g,"\\'")}')" title="Editar nota"
-            style="background:none;border:none;cursor:pointer;padding:0 0 0 ${o.nota ? '6px' : '0'};font-size:0.82rem;line-height:1;color:var(--magenta);vertical-align:middle;">✏️ ${o.nota ? '' : '<span style=\'font-size:0.75rem;font-weight:700\'>agregar nota</span>'}</button>
-        </div>
-        <div class="order-footer">
-          <span class="order-date">🕐 ${o.fecha}</span>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+
+        <!-- HEADER -->
+        <div class="order-header">
+          <div class="order-header-left">
+            <div class="order-avatar">${svgUser}</div>
+            <div class="order-name-wrap">
+              <div class="order-name">
+                ${escHtml(o.nombre)}
+                <button onclick="editarNombre(${o.id},'${escHtml(o.nombre)}')" title="Editar nombre" class="icon-btn" style="width:22px;height:22px;border-radius:6px">${svgEdit}</button>
+              </div>
+              <div class="order-time">${svgClock} ${o.fecha}</div>
+            </div>
+          </div>
+          <div class="order-header-right">
             ${badgePago}
-            <button class="btn-delete" onclick="reenviarPedido(${o.id})" title="Reenviar por WhatsApp" style="border-color:#25D366;color:#25D366">📤</button>
-            <button class="btn-delete" onclick="deleteOrder(${o.id})">🗑</button>
-            <button class="btn-deliver ${o.entregado ? 'done' : 'pending'}" onclick="toggleEntregado(${o.id})">
-              ${o.entregado ? '✅ Entregado' : '📦 Marcar entregado'}
+            <span class="order-qty-badge">
+              ${svgBowl} ×${o.cantidad}${totalPedido ? `<span style="opacity:.85;font-size:.75rem">·</span>${totalPedido}` : ''}
+              <button onclick="editarCantidad(${o.id},${o.cantidad})" title="Editar cantidad" style="background:none;border:none;cursor:pointer;padding:0;display:inline-flex;align-items:center;opacity:.8">${svgEdit}</button>
+            </span>
+          </div>
+        </div>
+
+        <!-- BODY -->
+        <div class="order-body">
+          <div class="order-info-grid">
+
+            <div class="order-info-row">
+              <div class="info-icon">${svgPin}</div>
+              <span class="info-text" title="${escHtml(o.direccion)}">${escHtml(o.direccion)}</span>
+              <div class="info-actions">
+                <button class="icon-btn" onclick="navigator.clipboard.writeText('${escHtml(o.direccion).replace(/'/g,"\\'")}').then(()=>showToast('Dirección copiada'))" title="Copiar">${svgCopy}</button>
+                <button class="icon-btn" onclick="editarDireccion(${o.id},'${escHtml(o.direccion).replace(/'/g,"\\'")}');" title="Editar">${svgEdit}</button>
+              </div>
+            </div>
+
+            <div class="order-info-row">
+              <div class="info-icon">${svgPhone}</div>
+              <span class="info-text">${escHtml(o.telefono)}</span>
+              <div class="info-actions">
+                <button class="icon-btn" onclick="editarTelefono(${o.id},'${escHtml(o.telefono)}')" title="Editar">${svgEdit}</button>
+                <a href="${waHref}" target="_blank" rel="noopener" class="wa-link" title="WhatsApp">${svgWa}</a>
+              </div>
+            </div>
+
+            ${o.fechaEntrega ? `
+            <div class="order-info-row">
+              <div class="info-icon">${svgCal}</div>
+              <span class="info-text">${escHtml(o.fechaEntrega)}</span>
+            </div>` : ''}
+
+          </div>
+
+          ${o.nota ? `
+          <div class="order-note">
+            <span style="flex-shrink:0;margin-top:1px">${svgNote}</span>
+            <span style="flex:1">${escHtml(o.nota)}</span>
+            <button class="icon-btn" onclick="editarNota(${o.id},'${(o.nota||'').replace(/'/g,"\\'")}') " title="Editar nota">${svgEdit}</button>
+          </div>` : `
+          <div class="order-note-empty">
+            <button onclick="editarNota(${o.id},'')" style="background:none;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:0.78rem;font-weight:700;color:var(--gray);padding:4px 0">${svgNote} <span>Agregar nota</span></button>
+          </div>`}
+        </div>
+
+        <!-- FOOTER / ACCIONES -->
+        <div class="order-footer">
+          <div class="order-footer-left">
+            <button class="btn-action resend" onclick="reenviarPedido(${o.id})" title="Reenviar por WhatsApp">
+              ${svgSend} Reenviar
             </button>
-            ${o.entregado ? `<button class="btn-pago ${o.pagado ? 'cobrado' : 'cobrar'}" onclick="togglePagado(${o.id})">
-              ${o.pagado ? '💵 Cobrado' : '💰 Cobrar'}
+            <button class="btn-action delete" onclick="deleteOrder(${o.id})" title="Eliminar">
+              ${svgTrash}
+            </button>
+          </div>
+          <div class="order-footer-right">
+            <button class="btn-action ${o.entregado ? 'deliver-done' : 'deliver-pending'}" onclick="toggleEntregado(${o.id})">
+              ${o.entregado ? svgCheck+' Entregado' : svgBox+' Marcar entregado'}
+            </button>
+            ${o.entregado ? `
+            <button class="btn-action ${o.pagado ? 'pay-done' : 'pay-pending'}" onclick="togglePagado(${o.id})">
+              ${o.pagado ? svgCheck+' Cobrado' : svgCoin+' Cobrar'}
             </button>` : ''}
           </div>
         </div>
+
       </div>
     `}).join('');
   }
