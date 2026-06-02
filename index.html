@@ -397,14 +397,19 @@
   /* ── CARD HEADER ── */
   .order-header {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
     padding: 12px 14px 10px;
     border-bottom: 1.5px solid #f0eaf4;
-    gap: 10px;
+    gap: 8px;
   }
 
-  .order-header-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+  /* Fila 1: avatar + nombre */
+  .order-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
 
   .order-avatar {
     width: 36px; height: 36px; border-radius: 50%;
@@ -423,14 +428,12 @@
     font-size: 1.05rem;
     letter-spacing: 0.8px;
     color: var(--black);
-    white-space: normal;
-    overflow: visible;
-    text-overflow: unset;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     display: flex;
     align-items: center;
     gap: 6px;
-    flex-wrap: wrap;
-    word-break: break-word;
   }
 
   .order-time {
@@ -443,7 +446,13 @@
     gap: 4px;
   }
 
-  .order-header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  /* Fila 2: badges */
+  .order-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
 
   /* Chip cantidad+total */
   .order-qty-badge {
@@ -1523,6 +1532,7 @@
 
         <!-- HEADER -->
         <div class="order-header">
+          <!-- Fila 1: avatar + nombre -->
           <div class="order-header-left">
             <div class="order-avatar">${svgUser}</div>
             <div class="order-name-wrap">
@@ -1533,6 +1543,7 @@
               <div class="order-time">${svgClock} ${o.fecha}</div>
             </div>
           </div>
+          <!-- Fila 2: badges -->
           <div class="order-header-right">
             ${badgePago}
             <span class="order-qty-badge">
