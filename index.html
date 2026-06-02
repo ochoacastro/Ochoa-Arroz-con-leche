@@ -16,6 +16,8 @@
     --gray: #888;
     --light: #f7e8f0;
     --delivered: #2ecc71;
+    --unpaid: #f39c12;
+    --unpaid-light: #fff8ee;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -388,6 +390,47 @@
     box-shadow: 3px 3px 0 var(--delivered);
     opacity: .7;
   }
+
+  /* Entregado pero NO pagado — resaltado naranja */
+  .order-item.delivered.unpaid {
+    border-color: var(--unpaid);
+    box-shadow: 3px 3px 0 var(--unpaid);
+    background: var(--unpaid-light);
+    opacity: 1;
+  }
+
+  .badge-pago {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    font-weight: 900;
+    border-radius: 50px;
+    padding: 3px 9px;
+    border: 2px solid var(--black);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .badge-pago.pagado { background: #d4f5e5; color: #1a7a4a; border-color: #1a7a4a; }
+  .badge-pago.pendiente-cobro { background: #fff0d0; color: #a05c00; border-color: var(--unpaid); }
+
+  .btn-pago {
+    padding: 7px 14px;
+    border: 2px solid var(--black);
+    border-radius: 30px;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+  }
+  .btn-pago.cobrar { background: var(--unpaid); color: #fff; border-color: var(--unpaid); }
+  .btn-pago.cobrado { background: #d4f5e5; color: #1a7a4a; border-color: #1a7a4a; }
 
   .order-top {
     display: flex;
@@ -902,11 +945,22 @@
         <div class="lbl">✅ Total cobrado</div>
       </div>
     </div>
+    <div class="stat-row">
+      <div class="stat-box" style="flex:1;border-color:var(--unpaid);box-shadow:3px 3px 0 var(--unpaid);background:var(--unpaid-light)">
+        <div class="num" id="stat-por-cobrar" style="font-size:1.3rem;color:var(--unpaid)">$0</div>
+        <div class="lbl" style="color:var(--unpaid)">⏳ Por cobrar</div>
+      </div>
+      <div class="stat-box" style="flex:1">
+        <div class="num" id="stat-sin-pagar-count" style="font-size:1.3rem;color:var(--unpaid)">0</div>
+        <div class="lbl">Entregados sin cobrar</div>
+      </div>
+    </div>
 
     <div class="filter-row">
       <button class="filter-btn active" id="f-todos" onclick="setFilter('todos', this)">Todos</button>
       <button class="filter-btn" id="f-pendientes" onclick="setFilter('pendientes', this)">Pendientes</button>
       <button class="filter-btn" id="f-entregados" onclick="setFilter('entregados', this)">Entregados</button>
+      <button class="filter-btn" id="f-sincobrar" onclick="setFilter('sincobrar', this)" style="border-color:var(--unpaid);color:var(--unpaid)">⏳ Sin cobrar</button>
     </div>
 
     <div id="orders-list"></div>
@@ -1080,6 +1134,7 @@
       total: totalPedido,
       fechaEntrega,
       entregado: false,
+      pagado: false,
       fecha: new Date().toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })
     };
 
@@ -1324,6 +1379,7 @@
     const orders = getOrders();
     const pending = orders.filter(o => !o.entregado);
     const done = orders.filter(o => o.entregado);
+    const sinCobrar = orders.filter(o => o.entregado && !o.pagado);
     const units = pending.reduce((s, o) => s + o.cantidad, 0);
     const currentPrice = getPrice();
 
@@ -1333,8 +1389,14 @@
       return s + p;
     }, 0);
 
-    // Total cobrado: suma totales entregados
-    const cobrado = done.reduce((s, o) => {
+    // Total cobrado: suma totales de pedidos pagados
+    const cobrado = orders.filter(o => o.pagado).reduce((s, o) => {
+      const p = o.total != null ? o.total : (currentPrice > 0 ? o.cantidad * currentPrice : 0);
+      return s + p;
+    }, 0);
+
+    // Por cobrar: entregados pero no pagados
+    const porCobrar = sinCobrar.reduce((s, o) => {
       const p = o.total != null ? o.total : (currentPrice > 0 ? o.cantidad * currentPrice : 0);
       return s + p;
     }, 0);
@@ -1343,11 +1405,14 @@
     document.getElementById('stat-units').textContent = units;
     document.getElementById('stat-recaudo').textContent = recaudo > 0 ? '$' + recaudo.toLocaleString('es-CO') : '$0';
     document.getElementById('stat-cobrado').textContent = cobrado > 0 ? '$' + cobrado.toLocaleString('es-CO') : '$0';
+    document.getElementById('stat-por-cobrar').textContent = porCobrar > 0 ? '$' + porCobrar.toLocaleString('es-CO') : '$0';
+    document.getElementById('stat-sin-pagar-count').textContent = sinCobrar.length;
     document.getElementById('badge-pendiente').textContent = `${pending.length} pendiente${pending.length !== 1 ? 's' : ''}`;
 
     let filtered = orders;
     if (currentFilter === 'pendientes') filtered = pending;
     if (currentFilter === 'entregados') filtered = done;
+    if (currentFilter === 'sincobrar') filtered = sinCobrar;
 
     const container = document.getElementById('orders-list');
 
@@ -1360,8 +1425,19 @@
       const totalPedido = o.total != null
         ? `$${o.total.toLocaleString('es-CO')}`
         : (currentPrice > 0 ? `$${(o.cantidad * currentPrice).toLocaleString('es-CO')}` : null);
+
+      // Clase visual de la tarjeta
+      const cardClass = o.entregado
+        ? (o.pagado ? 'delivered' : 'delivered unpaid')
+        : '';
+
+      // Badge de estado de pago (solo si está entregado)
+      const badgePago = o.entregado
+        ? `<span class="badge-pago ${o.pagado ? 'pagado' : 'pendiente-cobro'}">${o.pagado ? '✅ Pagado' : '⏳ Sin cobrar'}</span>`
+        : '';
+
       return `
-      <div class="order-item ${o.entregado ? 'delivered' : ''}" id="oi-${o.id}">
+      <div class="order-item ${cardClass}" id="oi-${o.id}">
         <div class="order-top">
           <span class="order-name">${escHtml(o.nombre)}
             <button onclick="editarNombre(${o.id}, '${escHtml(o.nombre)}')" title="Editar nombre"
@@ -1402,12 +1478,16 @@
         </div>
         <div class="order-footer">
           <span class="order-date">🕐 ${o.fecha}</span>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+            ${badgePago}
             <button class="btn-delete" onclick="reenviarPedido(${o.id})" title="Reenviar por WhatsApp" style="border-color:#25D366;color:#25D366">📤</button>
             <button class="btn-delete" onclick="deleteOrder(${o.id})">🗑</button>
             <button class="btn-deliver ${o.entregado ? 'done' : 'pending'}" onclick="toggleEntregado(${o.id})">
               ${o.entregado ? '✅ Entregado' : '📦 Marcar entregado'}
             </button>
+            ${o.entregado ? `<button class="btn-pago ${o.pagado ? 'cobrado' : 'cobrar'}" onclick="togglePagado(${o.id})">
+              ${o.pagado ? '💵 Cobrado' : '💰 Cobrar'}
+            </button>` : ''}
           </div>
         </div>
       </div>
@@ -1550,6 +1630,22 @@
     }
   }
 
+  function togglePagado(id) {
+    const orders = getOrders();
+    const o = orders.find(x => x.id === id);
+    if (!o) return;
+    const nuevoPago = !o.pagado;
+    if (window._fbDB && o.fbKey) {
+      const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
+      window._fbUpdate(pedidoRef, { pagado: nuevoPago });
+    } else {
+      o.pagado = nuevoPago;
+      saveOrders(orders);
+      renderOrders();
+    }
+    showToast(nuevoPago ? '💵 ¡Pago registrado!' : '⏳ Marcado como pendiente de cobro');
+  }
+
   let _deleteTargetId = null;
 
   function deleteOrder(id) {
@@ -1590,8 +1686,12 @@
     const total = orders.length;
     const entregados = orders.filter(o => o.entregado).length;
     const pendientes = total - entregados;
+    const sinCobrar = orders.filter(o => o.entregado && !o.pagado).length;
     const unidades = orders.reduce((s, o) => s + o.cantidad, 0);
-    const cobrado = orders.filter(o => o.entregado).reduce((s, o) => {
+    const cobrado = orders.filter(o => o.pagado).reduce((s, o) => {
+      return s + (o.total != null ? o.total : (currentPrice > 0 ? o.cantidad * currentPrice : 0));
+    }, 0);
+    const porCobrar = orders.filter(o => o.entregado && !o.pagado).reduce((s, o) => {
       return s + (o.total != null ? o.total : (currentPrice > 0 ? o.cantidad * currentPrice : 0));
     }, 0);
 
@@ -1599,6 +1699,7 @@
       <span class="big">${total} pedido${total !== 1 ? 's' : ''}</span>
       ${unidades} unidades · ${entregados} entregados · ${pendientes} pendientes
       ${cobrado > 0 ? `<br>💵 Total cobrado: <strong>$${cobrado.toLocaleString('es-CO')}</strong>` : ''}
+      ${sinCobrar > 0 ? `<br>⏳ Sin cobrar: <strong>${sinCobrar} pedido${sinCobrar!==1?'s':''} · $${porCobrar.toLocaleString('es-CO')}</strong>` : ''}
     `;
     document.getElementById('modal-cierre').classList.add('open');
   }
