@@ -924,9 +924,11 @@
     <!-- Datos -->
     <div class="card">
       <h2>📝 Tus datos</h2>
-      <div class="form-group">
+      <div class="form-group" style="position:relative">
         <label>Nombre completo</label>
-        <input type="text" id="f-nombre" placeholder="Ej: María García" maxlength="60">
+        <input type="text" id="f-nombre" placeholder="Ej: María García" maxlength="60"
+          oninput="buscarCliente(this.value)" autocomplete="off">
+        <div id="autocomplete-list" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:50;background:#fff;border:2px solid var(--magenta);border-radius:12px;box-shadow:0 4px 16px rgba(192,24,106,.15);overflow:hidden;margin-top:4px;max-height:200px;overflow-y:auto"></div>
       </div>
       <div class="form-group">
         <label>Dirección de entrega</label>
@@ -1044,7 +1046,25 @@
       </div>
     </div>
 
-    <div class="filter-row">
+    <!-- Desglose cobrado por método de pago -->
+    <div class="stat-row" style="margin-bottom:4px">
+      <div style="flex:1;background:#edf7f1;border:2px solid #1a7a4a;border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;box-shadow:2px 2px 0 #1a7a4a">
+        <span style="font-size:1.5rem;line-height:1">💵</span>
+        <div style="flex:1;text-align:left">
+          <div style="font-family:'Black Han Sans',sans-serif;font-size:1.2rem;color:#1a7a4a;line-height:1.1" id="stat-efectivo">$0</div>
+          <div style="font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#1a7a4a;margin-top:2px">Efectivo cobrado</div>
+        </div>
+      </div>
+      <div style="flex:1;background:#f0eeff;border:2px solid #6236FF;border-radius:12px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;box-shadow:2px 2px 0 #6236FF">
+        <span style="font-size:1.5rem;line-height:1">📱</span>
+        <div style="flex:1;text-align:left">
+          <div style="font-family:'Black Han Sans',sans-serif;font-size:1.2rem;color:#6236FF;line-height:1.1" id="stat-nequi">$0</div>
+          <div style="font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#6236FF;margin-top:2px">Nequi cobrado</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-row" style="margin-top:16px">
       <button class="filter-btn active" id="f-todos" onclick="setFilter('todos', this)">Todos</button>
       <button class="filter-btn" id="f-pendientes" onclick="setFilter('pendientes', this)">Pendientes</button>
       <button class="filter-btn" id="f-entregados" onclick="setFilter('entregados', this)">Entregados</button>
@@ -1193,6 +1213,56 @@
     document.getElementById('precio-label').innerHTML = lbl;
   }
 
+  // ── CLIENTES FRECUENTES ──
+  function getClientes() {
+    try { return JSON.parse(localStorage.getItem('ochoa_clientes') || '[]'); } catch { return []; }
+  }
+  function guardarCliente(nombre, direccion, telefono) {
+    if (!nombre || !direccion || !telefono) return;
+    const clientes = getClientes();
+    const key = nombre.toLowerCase().trim();
+    const idx = clientes.findIndex(c => c.nombre.toLowerCase().trim() === key);
+    const entrada = { nombre: nombre.trim(), direccion: direccion.trim(), telefono: telefono.trim() };
+    if (idx >= 0) clientes[idx] = entrada; // actualizar si ya existe
+    else clientes.unshift(entrada);
+    // Máximo 200 clientes guardados
+    if (clientes.length > 200) clientes.splice(200);
+    localStorage.setItem('ochoa_clientes', JSON.stringify(clientes));
+  }
+  function buscarCliente(val) {
+    const lista = document.getElementById('autocomplete-list');
+    if (!lista) return;
+    const q = val.trim().toLowerCase();
+    if (q.length < 2) { lista.style.display = 'none'; return; }
+    const clientes = getClientes();
+    const matches = clientes.filter(c => c.nombre.toLowerCase().includes(q)).slice(0, 6);
+    if (!matches.length) { lista.style.display = 'none'; return; }
+    lista.innerHTML = matches.map((c, i) => `
+      <div onclick="seleccionarCliente(${i},'${c.nombre.replace(/'/g,"\\'")}','${c.direccion.replace(/'/g,"\\'")}','${c.telefono.replace(/'/g,"\\'")}') "
+        style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0eaf4;transition:background .15s"
+        onmouseover="this.style.background='var(--light)'" onmouseout="this.style.background=''"
+      >
+        <div style="font-weight:800;font-size:0.9rem;color:var(--black)">${c.nombre}</div>
+        <div style="font-size:0.75rem;color:var(--gray);margin-top:2px">📍 ${c.direccion} · 📞 ${c.telefono}</div>
+      </div>`).join('');
+    lista.style.display = 'block';
+  }
+  function seleccionarCliente(i, nombre, direccion, telefono) {
+    document.getElementById('f-nombre').value = nombre;
+    document.getElementById('f-direccion').value = direccion;
+    // Teléfono: quitar prefijo +57 o 57 para el campo
+    const tel = telefono.replace(/^\+?57/, '');
+    document.getElementById('f-telefono').value = tel;
+    document.getElementById('autocomplete-list').style.display = 'none';
+  }
+  // Cerrar dropdown al tocar fuera
+  document.addEventListener('click', (e) => {
+    const lista = document.getElementById('autocomplete-list');
+    if (lista && !lista.contains(e.target) && e.target.id !== 'f-nombre') {
+      lista.style.display = 'none';
+    }
+  });
+
   // ── MEDIO DE PAGO ──
   function resaltarPago() {
     const lblEf = document.getElementById('lbl-efectivo');
@@ -1242,6 +1312,9 @@
       pagado: false,
       fecha: new Date().toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })
     };
+
+    // Guardar cliente frecuente
+    guardarCliente(nombre, direccion, telefono);
 
     // Guardar en Firebase (fuente de verdad)
     if (window._fbDB) {
@@ -1509,12 +1582,25 @@
       return s + p;
     }, 0);
 
+    // Cobrado por método de pago (solo pedidos pagados)
+    const pagados = orders.filter(o => o.pagado);
+    const cobradoEfectivo = pagados.filter(o => o.metodoPago === 'Efectivo').reduce((s, o) => {
+      const p = o.total != null ? o.total : (currentPrice > 0 ? o.cantidad * currentPrice : 0);
+      return s + p;
+    }, 0);
+    const cobradoNequi = pagados.filter(o => o.metodoPago === 'Nequi').reduce((s, o) => {
+      const p = o.total != null ? o.total : (currentPrice > 0 ? o.cantidad * currentPrice : 0);
+      return s + p;
+    }, 0);
+
     document.getElementById('stat-pending').textContent = pending.length;
     document.getElementById('stat-units').textContent = units;
     document.getElementById('stat-recaudo').textContent = recaudo > 0 ? '$' + recaudo.toLocaleString('es-CO') : '$0';
     document.getElementById('stat-cobrado').textContent = cobrado > 0 ? '$' + cobrado.toLocaleString('es-CO') : '$0';
     document.getElementById('stat-por-cobrar').textContent = porCobrar > 0 ? '$' + porCobrar.toLocaleString('es-CO') : '$0';
     document.getElementById('stat-sin-pagar-count').textContent = sinCobrar.length;
+    document.getElementById('stat-efectivo').textContent = cobradoEfectivo > 0 ? '$' + cobradoEfectivo.toLocaleString('es-CO') : '$0';
+    document.getElementById('stat-nequi').textContent = cobradoNequi > 0 ? '$' + cobradoNequi.toLocaleString('es-CO') : '$0';
     document.getElementById('badge-pendiente').textContent = `${pending.length} pendiente${pending.length !== 1 ? 's' : ''}`;
 
     let filtered = orders;
@@ -1614,11 +1700,17 @@
               <span class="info-text">${escHtml(o.fechaEntrega)}</span>
             </div>` : ''}
 
-            ${o.metodoPago ? `
             <div class="order-info-row">
               <div class="info-icon" style="font-size:0.85rem">${o.metodoPago === 'Nequi' ? '📱' : '💵'}</div>
-              <span class="info-text" style="font-weight:800;color:${o.metodoPago === 'Nequi' ? '#6236FF' : '#1a7a4a'}">${escHtml(o.metodoPago)}</span>
-            </div>` : ''}
+              ${o.metodoPago ? `
+                <span class="info-text" style="font-weight:800;color:${o.metodoPago === 'Nequi' ? '#6236FF' : '#1a7a4a'}">${escHtml(o.metodoPago)}</span>
+                <div class="info-actions">
+                  <button class="icon-btn" onclick="editarMetodoPago(${o.id},'${escHtml(o.metodoPago)}')" title="Cambiar medio de pago">${svgEdit}</button>
+                </div>
+              ` : `
+                <button onclick="editarMetodoPago(${o.id},'')" style="background:none;border:1.5px dashed #ccc;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:0.78rem;font-weight:700;color:var(--gray);padding:4px 10px">💳 <span>Asignar pago</span></button>
+              `}
+            </div>
 
           </div>
 
@@ -1778,6 +1870,48 @@
       renderOrders();
     }
     showToast('💬 Nota actualizada');
+  }
+
+  function editarMetodoPago(id, actual) {
+    // Modal inline: dos botones Efectivo / Nequi
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:24px';
+    overlay.innerHTML = `
+      <div style="background:#fff;border:3px solid #111;border-radius:20px;padding:24px 20px;max-width:300px;width:100%;box-shadow:6px 6px 0 #111;text-align:center">
+        <p style="font-family:'Black Han Sans',sans-serif;font-size:1.1rem;letter-spacing:1.5px;color:#8f0e4e;margin-bottom:6px">💳 MEDIO DE PAGO</p>
+        <p style="font-size:0.8rem;color:#888;font-weight:700;margin-bottom:18px">¿Cómo pagó el cliente?</p>
+        <div style="display:flex;gap:12px;justify-content:center">
+          <button id="mp-btn-ef" style="flex:1;padding:14px 10px;border:2.5px solid ${actual==='Efectivo'?'#c0186a':'#ddd'};border-radius:14px;background:${actual==='Efectivo'?'#f7e8f0':'#fff'};font-family:'Nunito',sans-serif;font-weight:800;font-size:1rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:border-color .15s">
+            <span style="font-size:1.8rem">💵</span> Efectivo
+          </button>
+          <button id="mp-btn-nq" style="flex:1;padding:14px 10px;border:2.5px solid ${actual==='Nequi'?'#6236FF':'#ddd'};border-radius:14px;background:${actual==='Nequi'?'#f0eeff':'#fff'};font-family:'Nunito',sans-serif;font-weight:800;font-size:1rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:border-color .15s">
+            <span style="font-size:1.8rem">📱</span> Nequi
+          </button>
+        </div>
+        <button id="mp-btn-cancel" style="margin-top:16px;background:none;border:1.5px solid #ddd;border-radius:30px;padding:8px 20px;font-family:'Nunito',sans-serif;font-weight:700;font-size:0.82rem;cursor:pointer;color:#888">Cancelar</button>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    function guardar(val) {
+      document.body.removeChild(overlay);
+      const orders = getOrders();
+      const o = orders.find(x => x.id === id);
+      if (!o) return;
+      o.metodoPago = val;
+      if (window._fbDB && o.fbKey) {
+        const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
+        window._fbUpdate(pedidoRef, { metodoPago: val });
+      } else {
+        saveOrders(orders);
+        renderOrders();
+      }
+      showToast(val === 'Nequi' ? '📱 Pago: Nequi guardado' : '💵 Pago: Efectivo guardado');
+    }
+
+    overlay.querySelector('#mp-btn-ef').onclick = () => guardar('Efectivo');
+    overlay.querySelector('#mp-btn-nq').onclick = () => guardar('Nequi');
+    overlay.querySelector('#mp-btn-cancel').onclick = () => document.body.removeChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) document.body.removeChild(overlay); });
   }
 
   function toggleEntregado(id) {
