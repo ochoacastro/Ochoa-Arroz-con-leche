@@ -404,7 +404,7 @@
     gap: 10px;
   }
 
-  .order-header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .order-header-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
 
   .order-avatar {
     width: 36px; height: 36px; border-radius: 50%;
@@ -416,19 +416,21 @@
   .order-item.delivered .order-avatar { border-color: var(--delivered); }
   .order-item.delivered.unpaid .order-avatar { border-color: var(--unpaid); }
 
-  .order-name-wrap { min-width: 0; }
+  .order-name-wrap { min-width: 0; flex: 1; }
 
   .order-name {
     font-family: 'Black Han Sans', sans-serif;
-    font-size: 1rem;
+    font-size: 1.05rem;
     letter-spacing: 0.8px;
     color: var(--black);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
     display: flex;
     align-items: center;
     gap: 6px;
+    flex-wrap: wrap;
+    word-break: break-word;
   }
 
   .order-time {
