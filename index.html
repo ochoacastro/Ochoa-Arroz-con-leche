@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OCHOA – Arroz con Leche por Encargo</title>
-<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit" async defer></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Nunito:wght@400;600;700;900&display=swap');
 
@@ -881,6 +881,9 @@
   <p>Ingresa el PIN de acceso</p>
   <input type="password" id="pin-input" maxlength="4" placeholder="••••" inputmode="numeric">
   <p id="pin-error"></p>
+  <div style="display:flex;justify-content:center;margin:12px 0">
+    <div class="g-recaptcha" id="recaptcha-admin" data-sitekey="6LctgDgtAAAAAGXIBzDcDRGUe3xStjj0cH78FiaU"></div>
+  </div>
   <button class="btn-pin-ok" onclick="checkPin()">ENTRAR</button>
 </div>
 
@@ -950,7 +953,7 @@
     </div>
 
     <div style="display:flex;justify-content:center;margin-bottom:16px">
-      <div class="g-recaptcha" data-sitekey="6LctgDgtAAAAAGXIBzDcDRGUe3xStjj0cH78FiaU"></div>
+      <div class="g-recaptcha" id="recaptcha-pedido" data-sitekey="6LctgDgtAAAAAGXIBzDcDRGUe3xStjj0cH78FiaU"></div>
     </div>
 
     <button class="btn-submit" onclick="enviarPedido()">
@@ -1391,10 +1394,16 @@
   }
 
   function checkPin() {
+    const recaptchaAdmin = grecaptcha.getResponse(window._recaptchaAdminId);
+    if (!recaptchaAdmin) {
+      document.getElementById('pin-error').textContent = '⚠️ Completa el reCAPTCHA';
+      return;
+    }
     const val = document.getElementById('pin-input').value;
     if (val === ADMIN_PIN) {
       adminUnlocked = true;
       document.getElementById('pin-gate').style.display = 'none';
+      grecaptcha.reset(window._recaptchaAdminId);
       if (window._afterAdminCb) {
         const cb = window._afterAdminCb;
         window._afterAdminCb = null;
@@ -1405,6 +1414,7 @@
     } else {
       document.getElementById('pin-error').textContent = '❌ PIN incorrecto';
       document.getElementById('pin-input').value = '';
+      grecaptcha.reset(window._recaptchaAdminId);
     }
   }
 
@@ -2305,6 +2315,19 @@
   mostrarFechaBanner();
   // Bloquear menú contextual (largo-presión) en toda la página
   document.addEventListener('contextmenu', e => e.preventDefault());
+
+  // ── INIT reCAPTCHA explícito ──
+  function onRecaptchaLoad() {
+    // reCAPTCHA del formulario de pedido
+    grecaptcha.render('recaptcha-pedido', {
+      sitekey: '6LctgDgtAAAAAGXIBzDcDRGUe3xStjj0cH78FiaU'
+    });
+    // reCAPTCHA del login admin
+    window._recaptchaAdminId = grecaptcha.render('recaptcha-admin', {
+      sitekey: '6LctgDgtAAAAAGXIBzDcDRGUe3xStjj0cH78FiaU',
+      theme: 'dark'
+    });
+  }
 </script>
 </body>
 </html>
