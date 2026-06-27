@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OCHOA – Arroz con Leche por Encargo</title>
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Nunito:wght@400;600;700;900&display=swap');
 
@@ -948,6 +949,10 @@
       </div>
     </div>
 
+    <div style="display:flex;justify-content:center;margin-bottom:16px">
+      <div class="g-recaptcha" data-sitekey="6LeEfDgtAAAAEqt9hSjPS7YST2-NOlldWyNhmkW"></div>
+    </div>
+
     <button class="btn-submit" onclick="enviarPedido()">
       <span>🚀</span> CONFIRMAR PEDIDO
     </button>
@@ -1274,6 +1279,13 @@
   }
 
   function enviarPedido() {
+    // Verificar reCAPTCHA
+    const recaptchaResponse = grecaptcha.getResponse();
+    if (!recaptchaResponse) {
+      showToast('⚠️ Por favor completa el reCAPTCHA');
+      return;
+    }
+
     const nombre = document.getElementById('f-nombre').value.trim();
     const direccion = document.getElementById('f-direccion').value.trim();
     const telefonoRaw = document.getElementById('f-telefono').value.trim();
@@ -1344,6 +1356,7 @@
     document.getElementById('f-nota').value = '';
     qty = 1;
     changeQty(0);
+    grecaptcha.reset();
 
     // Abrir WhatsApp del negocio para recibir el pedido
     if (waDigits) window.location.href = waUrl;
