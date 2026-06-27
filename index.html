@@ -5,6 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OCHOA – Arroz con Leche por Encargo</title>
 <script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit" async defer></script>
+
+<!-- MODAL EDICIÓN ADMIN -->
+<div id="modal-edicion" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:16px">
+  <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:360px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.25)">
+    <h3 id="modal-edicion-titulo" style="margin:0 0 16px;font-size:1.1rem;color:#1a1a1a;text-align:center"></h3>
+    <input id="modal-edicion-input" type="text" style="width:100%;box-sizing:border-box;padding:12px 14px;border:2px solid #e0e0e0;border-radius:12px;font-size:1rem;outline:none;margin-bottom:18px;font-family:inherit" />
+    <div style="display:flex;gap:10px">
+      <button onclick="cerrarModalEdicion()" style="flex:1;padding:12px;background:#f0f0f0;color:#333;border:none;border-radius:12px;font-size:0.95rem;font-weight:600;cursor:pointer">Cancelar</button>
+      <button id="modal-edicion-ok" style="flex:1;padding:12px;background:#c0185a;color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMACIÓN PEDIDO -->
+<div id="modal-confirmacion" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:16px">
+  <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:380px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.25);text-align:center">
+    <div style="font-size:2.8rem;margin-bottom:8px">🎉</div>
+    <h2 style="margin:0 0 4px;font-size:1.3rem;color:#1a1a1a">¡Pedido confirmado!</h2>
+    <p style="margin:0 0 18px;color:#555;font-size:0.9rem">Resumen de tu pedido:</p>
+    <div id="modal-resumen" style="background:#fdf3f7;border-radius:12px;padding:14px;text-align:left;font-size:0.88rem;color:#333;line-height:1.7;margin-bottom:20px"></div>
+    <button id="modal-btn-wa" style="width:100%;padding:14px;background:#25D366;color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.122 1.532 5.857L.057 23.882l6.186-1.453A11.942 11.942 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.032-1.386l-.36-.214-3.733.877.945-3.641-.235-.374A9.818 9.818 0 1112 21.818z"/></svg>
+      Enviar por WhatsApp
+    </button>
+    <button onclick="cerrarModal()" style="width:100%;padding:12px;background:#f0f0f0;color:#333;border:none;border-radius:12px;font-size:0.95rem;font-weight:600;cursor:pointer">
+      Cerrar
+    </button>
+  </div>
+</div>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Nunito:wght@400;600;700;900&display=swap');
 
@@ -1361,10 +1390,55 @@
     changeQty(0);
     grecaptcha.reset();
 
-    // Abrir WhatsApp del negocio para recibir el pedido
-    if (waDigits) window.location.href = waUrl;
+    // Armar resumen para el modal
+    let resumenHTML = `<b>👤 Nombre:</b> ${nombre}<br>`;
+    resumenHTML += `<b>📍 Dirección:</b> ${direccion}<br>`;
+    resumenHTML += `<b>📞 Teléfono:</b> ${telefono}<br>`;
+    resumenHTML += `<b>🍚 Cantidad:</b> ${newOrder.cantidad} unidad${newOrder.cantidad > 1 ? 'es' : ''}<br>`;
+    if (price > 0) {
+      resumenHTML += `<b>💰 Precio unit:</b> $${price.toLocaleString('es-CO')}<br>`;
+      resumenHTML += `<b>💵 Total:</b> $${(newOrder.cantidad * price).toLocaleString('es-CO')}<br>`;
+    }
+    if (fechaEntrega) resumenHTML += `<b>📅 Entrega:</b> ${fechaEntrega}<br>`;
+    if (nota) resumenHTML += `<b>💬 Nota:</b> ${nota}<br>`;
 
-    showToast('🎉 ¡Pedido registrado! Abriendo WhatsApp…');
+    document.getElementById('modal-resumen').innerHTML = resumenHTML;
+    document.getElementById('modal-btn-wa').onclick = () => {
+      if (waDigits) window.location.href = waUrl;
+      cerrarModal();
+    };
+    const modal = document.getElementById('modal-confirmacion');
+    modal.style.display = 'flex';
+  }
+
+  // ── MODAL CONFIRMACIÓN ──
+  function cerrarModal() {
+    document.getElementById('modal-confirmacion').style.display = 'none';
+  }
+
+  // ── MODAL EDICIÓN PERSONALIZADO ──
+  function abrirModalEdicion(titulo, valorActual, tipo, callback) {
+    const modal = document.getElementById('modal-edicion');
+    const input = document.getElementById('modal-edicion-input');
+    document.getElementById('modal-edicion-titulo').textContent = titulo;
+    input.value = valorActual || '';
+    input.type = tipo || 'text';
+    input.inputMode = tipo === 'number' ? 'numeric' : 'text';
+    modal.style.display = 'flex';
+    setTimeout(() => input.focus(), 100);
+    document.getElementById('modal-edicion-ok').onclick = () => {
+      cerrarModalEdicion();
+      callback(input.value);
+    };
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        cerrarModalEdicion();
+        callback(input.value);
+      }
+    };
+  }
+  function cerrarModalEdicion() {
+    document.getElementById('modal-edicion').style.display = 'none';
   }
 
   // ── TOAST ──
@@ -1767,22 +1841,23 @@
   }
 
   function editarNombre(id, nombreActual) {
-    const nuevo = prompt('Editar nombre:', nombreActual);
-    if (nuevo === null) return;
-    const nombre = nuevo.trim();
-    if (!nombre) { showToast('⚠️ El nombre no puede quedar vacío'); return; }
-    const orders = getOrders();
-    const o = orders.find(x => x.id === id);
-    if (!o) return;
-    o.nombre = nombre;
-    if (window._fbDB && o.fbKey) {
-      const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
-      window._fbUpdate(pedidoRef, { nombre });
-    } else {
-      saveOrders(orders);
-      renderOrders();
-    }
-    showToast('👤 Nombre actualizado');
+    abrirModalEdicion('👤 Editar nombre', nombreActual, 'text', (nuevo) => {
+      if (nuevo === null) return;
+      const nombre = nuevo.trim();
+      if (!nombre) { showToast('⚠️ El nombre no puede quedar vacío'); return; }
+      const orders = getOrders();
+      const o = orders.find(x => x.id === id);
+      if (!o) return;
+      o.nombre = nombre;
+      if (window._fbDB && o.fbKey) {
+        const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
+        window._fbUpdate(pedidoRef, { nombre });
+      } else {
+        saveOrders(orders);
+        renderOrders();
+      }
+      showToast('👤 Nombre actualizado');
+    });
   }
 
   function reenviarPedido(id) {
@@ -1810,82 +1885,85 @@
   }
 
   function editarTelefono(id, telActual) {
-    const nuevo = prompt('Editar teléfono:', telActual);
-    if (nuevo === null) return; // canceló
-    const tel = nuevo.trim();
-    if (!tel) { showToast('⚠️ El teléfono no puede quedar vacío'); return; }
-    const orders = getOrders();
-    const o = orders.find(x => x.id === id);
-    if (!o) return;
-    o.telefono = tel;
-    if (window._fbDB && o.fbKey) {
-      const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
-      window._fbUpdate(pedidoRef, { telefono: tel });
-    } else {
-      saveOrders(orders);
-      renderOrders();
-    }
-    showToast('📞 Teléfono actualizado');
+    abrirModalEdicion('📞 Editar teléfono', telActual, 'tel', (nuevo) => {
+      if (nuevo === null) return;
+      const tel = nuevo.trim();
+      if (!tel) { showToast('⚠️ El teléfono no puede quedar vacío'); return; }
+      const orders = getOrders();
+      const o = orders.find(x => x.id === id);
+      if (!o) return;
+      o.telefono = tel;
+      if (window._fbDB && o.fbKey) {
+        const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
+        window._fbUpdate(pedidoRef, { telefono: tel });
+      } else {
+        saveOrders(orders);
+        renderOrders();
+      }
+      showToast('📞 Teléfono actualizado');
+    });
   }
 
   function editarDireccion(id, dirActual) {
-    const nuevo = prompt('Editar dirección:', dirActual);
-    if (nuevo === null) return;
-    const dir = nuevo.trim();
-    if (!dir) { showToast('⚠️ La dirección no puede quedar vacía'); return; }
-    const orders = getOrders();
-    const o = orders.find(x => x.id === id);
-    if (!o) return;
-    o.direccion = dir;
-    if (window._fbDB && o.fbKey) {
-      const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
-      window._fbUpdate(pedidoRef, { direccion: dir });
-    } else {
-      saveOrders(orders);
-      renderOrders();
-    }
-    showToast('📍 Dirección actualizada');
+    abrirModalEdicion('📍 Editar dirección', dirActual, 'text', (nuevo) => {
+      if (nuevo === null) return;
+      const dir = nuevo.trim();
+      if (!dir) { showToast('⚠️ La dirección no puede quedar vacía'); return; }
+      const orders = getOrders();
+      const o = orders.find(x => x.id === id);
+      if (!o) return;
+      o.direccion = dir;
+      if (window._fbDB && o.fbKey) {
+        const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
+        window._fbUpdate(pedidoRef, { direccion: dir });
+      } else {
+        saveOrders(orders);
+        renderOrders();
+      }
+      showToast('📍 Dirección actualizada');
+    });
   }
 
   function editarCantidad(id, cantActual) {
-    const nuevo = prompt('Editar cantidad:', cantActual);
-    if (nuevo === null) return;
-    const cant = parseInt(nuevo.trim(), 10);
-    if (isNaN(cant) || cant < 1) { showToast('⚠️ Ingresa una cantidad válida (mínimo 1)'); return; }
-    const orders = getOrders();
-    const o = orders.find(x => x.id === id);
-    if (!o) return;
-    o.cantidad = cant;
-    // Recalcular total si hay precio
-    if (o.precioUnit > 0) o.total = cant * o.precioUnit;
-    const updates = { cantidad: cant };
-    if (o.precioUnit > 0) updates.total = o.total;
-    if (window._fbDB && o.fbKey) {
-      const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
-      window._fbUpdate(pedidoRef, updates);
-    } else {
-      saveOrders(orders);
-      renderOrders();
-    }
-    showToast('🍚 Cantidad actualizada');
+    abrirModalEdicion('🍚 Editar cantidad', cantActual, 'number', (nuevo) => {
+      if (nuevo === null) return;
+      const cant = parseInt(nuevo.trim(), 10);
+      if (isNaN(cant) || cant < 1) { showToast('⚠️ Ingresa una cantidad válida (mínimo 1)'); return; }
+      const orders = getOrders();
+      const o = orders.find(x => x.id === id);
+      if (!o) return;
+      o.cantidad = cant;
+      if (o.precioUnit > 0) o.total = cant * o.precioUnit;
+      const updates = { cantidad: cant };
+      if (o.precioUnit > 0) updates.total = o.total;
+      if (window._fbDB && o.fbKey) {
+        const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
+        window._fbUpdate(pedidoRef, updates);
+      } else {
+        saveOrders(orders);
+        renderOrders();
+      }
+      showToast('🍚 Cantidad actualizada');
+    });
   }
 
   function editarNota(id, notaActual) {
-    const nuevo = prompt('Editar nota adicional:', notaActual);
-    if (nuevo === null) return;
-    const nota = nuevo.trim();
-    const orders = getOrders();
-    const o = orders.find(x => x.id === id);
-    if (!o) return;
-    o.nota = nota;
-    if (window._fbDB && o.fbKey) {
-      const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
-      window._fbUpdate(pedidoRef, { nota });
-    } else {
-      saveOrders(orders);
-      renderOrders();
-    }
-    showToast('💬 Nota actualizada');
+    abrirModalEdicion('💬 Editar nota', notaActual, 'text', (nuevo) => {
+      if (nuevo === null) return;
+      const nota = nuevo.trim();
+      const orders = getOrders();
+      const o = orders.find(x => x.id === id);
+      if (!o) return;
+      o.nota = nota;
+      if (window._fbDB && o.fbKey) {
+        const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
+        window._fbUpdate(pedidoRef, { nota });
+      } else {
+        saveOrders(orders);
+        renderOrders();
+      }
+      showToast('💬 Nota actualizada');
+    });
   }
 
   function editarMetodoPago(id, actual) {
