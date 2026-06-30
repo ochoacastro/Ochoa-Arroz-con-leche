@@ -957,23 +957,23 @@
       <div class="form-group" style="position:relative">
         <label>Nombre completo</label>
         <input type="text" id="f-nombre" placeholder="Ej: María García" maxlength="60"
-          autocomplete="off">
+          autocomplete="new-password" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
       </div>
       <div class="form-group">
         <label>Dirección de entrega</label>
-        <input type="text" id="f-direccion" placeholder="Calle, barrio, ciudad" maxlength="100" autocomplete="off">
+        <input type="text" id="f-direccion" placeholder="Calle, barrio, ciudad" maxlength="100" autocomplete="new-password" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
       </div>
       <div class="form-group">
         <label>Teléfono / WhatsApp</label>
         <div style="display:flex;align-items:center;gap:0">
           <span style="padding:10px 12px;background:#f0f0f0;border:2px solid #ddd;border-right:none;border-radius:10px 0 0 10px;font-weight:800;font-size:0.95rem;color:var(--magenta-dark);white-space:nowrap;line-height:1.4">+57</span>
-          <input type="tel" id="f-telefono" placeholder="300 123 4567" maxlength="15" autocomplete="off" style="border-radius:0 10px 10px 0;border-left:none;margin-top:0">
+          <input type="tel" id="f-telefono" placeholder="300 123 4567" maxlength="15" autocomplete="new-password" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" style="border-radius:0 10px 10px 0;border-left:none;margin-top:0">
         </div>
       </div>
 
       <div class="form-group">
         <label>Notas adicionales</label>
-        <textarea id="f-nota" placeholder="Ej: sin azúcar, entregar en la tarde, tocar el portero…" autocomplete="off"></textarea>
+        <textarea id="f-nota" placeholder="Ej: sin azúcar, entregar en la tarde, tocar el portero…" autocomplete="new-password" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"></textarea>
       </div>
     </div>
 
@@ -2385,6 +2385,21 @@
   mostrarFechaBanner();
   // Bloquear menú contextual (largo-presión) en toda la página
   document.addEventListener('contextmenu', e => e.preventDefault());
+
+  // Forzar campos del formulario vacíos al cargar (evita que el navegador
+  // restaure datos de un cliente anterior usando el mismo dispositivo)
+  window.addEventListener('DOMContentLoaded', () => {
+    ['f-nombre','f-direccion','f-telefono','f-nota'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+  });
+  window.addEventListener('pageshow', () => {
+    ['f-nombre','f-direccion','f-telefono','f-nota'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+  });
 
   // ── INIT reCAPTCHA explícito ──
   function onRecaptchaLoad() {
