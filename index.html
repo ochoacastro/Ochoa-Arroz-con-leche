@@ -1129,7 +1129,7 @@
     <div class="modal-resumen" id="modal-resumen-txt"></div>
     <p class="modal-warning">⚠️ Se eliminarán todos los pedidos de hoy. Esta acción no se puede deshacer.</p>
     <div class="modal-btns">
-      <button class="btn-cancelar-modal" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-cancelar-modal" onclick="cerrarModalCierreDia()">Cancelar</button>
       <button class="btn-confirmar-cierre" onclick="confirmarCierre()">Sí, cerrar día</button>
     </div>
   </div>
@@ -2133,7 +2133,7 @@
     document.getElementById('modal-cierre').classList.add('open');
   }
 
-  function cerrarModal() {
+  function cerrarModalCierreDia() {
     document.getElementById('modal-cierre').classList.remove('open');
   }
 
@@ -2144,7 +2144,7 @@
     } else {
       saveOrders([]);
     }
-    cerrarModal();
+    cerrarModalCierreDia();
     showToast('🌙 Día cerrado — lista limpia');
   }
 
