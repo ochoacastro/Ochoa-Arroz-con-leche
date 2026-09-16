@@ -954,12 +954,11 @@
     <!-- Método de pago (visible solo si el admin lo configuró) -->
     <div class="card" id="metodo-pago-card" style="display:none">
       <h2>💳 Método de pago</h2>
-      <img id="metodo-pago-img" style="display:none;max-width:150px;max-height:150px;object-fit:contain;border-radius:12px;margin:0 auto 12px;border:2px solid var(--black)">
-      <p style="margin-bottom:6px"><strong id="metodo-pago-banco-txt" style="color:var(--magenta-dark)"></strong></p>
-      <p style="margin-bottom:4px;font-size:0.92rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap">Número de cuenta: <strong id="metodo-pago-cuenta-txt"></strong>
-        <button type="button" onclick="copiarCuenta()" style="padding:4px 10px;background:var(--light);border:1.5px solid var(--magenta-dark);border-radius:20px;font-size:0.72rem;font-weight:800;color:var(--magenta-dark);cursor:pointer;line-height:1.4">📋 Copiar</button>
-      </p>
-      <p style="font-size:0.92rem">A nombre de: <strong id="metodo-pago-titular-txt"></strong></p>
+      <div id="metodo-pago-carrusel" style="overflow:hidden;position:relative;touch-action:pan-y"
+        ontouchstart="metodoPagoTouchStart(event)" ontouchend="metodoPagoTouchEnd(event)">
+        <div id="metodo-pago-track" style="display:flex;transition:transform .3s ease"></div>
+      </div>
+      <div id="metodo-pago-dots" style="display:flex;justify-content:center;gap:6px;margin-top:10px"></div>
     </div>
 
     <!-- Datos -->
@@ -1046,24 +1045,9 @@
           oninput="guardarWaNum(this.value)">
       </div>
 
-      <label style="margin-top:14px;display:block">💳 Método de pago (visible para el cliente)</label>
-      <input type="text" id="pago-banco-config" placeholder="Ej: Bancolombia, Nequi, Daviplata" maxlength="60"
-        style="margin-top:6px"
-        oninput="guardarMetodoPagoCampo('banco', this.value)">
-      <input type="text" id="pago-cuenta-config" placeholder="Número de cuenta o celular" maxlength="40"
-        style="margin-top:8px"
-        oninput="guardarMetodoPagoCampo('cuenta', this.value)">
-      <input type="text" id="pago-titular-config" placeholder="Nombre del titular de la cuenta" maxlength="60"
-        style="margin-top:8px"
-        oninput="guardarMetodoPagoCampo('titular', this.value)">
-      <div style="margin-top:10px;margin-bottom:4px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <label style="padding:8px 16px;background:var(--magenta);color:#fff;border:2px solid var(--black);border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.82rem;cursor:pointer;text-transform:uppercase;letter-spacing:1px;margin:0">
-          📁 Subir imagen
-          <input type="file" accept="image/*" id="pago-imagen-upload-input" style="display:none" onchange="cargarImagenPago(this)">
-        </label>
-        <button onclick="borrarImagenPago()" style="padding:7px 14px;background:transparent;border:2px solid #ddd;border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.78rem;cursor:pointer;color:var(--gray)">🗑 Quitar</button>
-      </div>
-      <img id="pago-imagen-preview" style="display:none;max-width:140px;border-radius:12px;border:2px solid var(--black);margin-top:6px">
+      <label style="margin-top:14px;display:block">💳 Métodos de pago (visibles para el cliente)</label>
+      <div id="pago-metodos-config-list"></div>
+      <button type="button" onclick="agregarMetodoPago()" style="margin-top:10px;padding:8px 16px;background:var(--magenta);color:#fff;border:2px solid var(--black);border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.82rem;cursor:pointer;text-transform:uppercase;letter-spacing:1px">➕ Agregar método de pago</button>
     </div>
 
     <div class="stat-row">
@@ -1575,71 +1559,167 @@
     localStorage.setItem('ochoa_wa_num', '57' + digits);
   }
 
-  // ── MÉTODO DE PAGO ──
-  function guardarMetodoPagoCampo(campo, val) {
-    localStorage.setItem('ochoa_pago_' + campo, val.trim());
+  // ── MÉTODOS DE PAGO (múltiples, con carrusel para el cliente) ──
+  let metodoPagoIndex = 0;
+  let metodoPagoTotal = 0;
+  let _metodoPagoTouchX = null;
+
+  function obtenerMetodosPago() {
+    const raw = localStorage.getItem('ochoa_metodos_pago');
+    if (raw) {
+      try {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) return arr;
+      } catch (e) {}
+    }
+    // Migración desde el formato anterior de un solo método de pago
+    const banco = localStorage.getItem('ochoa_pago_banco') || '';
+    const cuenta = localStorage.getItem('ochoa_pago_cuenta') || '';
+    const titular = localStorage.getItem('ochoa_pago_titular') || '';
+    const imagen = localStorage.getItem('ochoa_pago_imagen') || '';
+    const migrado = (banco || cuenta || titular || imagen) ? [{ banco, cuenta, titular, imagen }] : [];
+    localStorage.setItem('ochoa_metodos_pago', JSON.stringify(migrado));
+    return migrado;
+  }
+
+  function guardarMetodosPago(arr) {
+    localStorage.setItem('ochoa_metodos_pago', JSON.stringify(arr));
+  }
+
+  function agregarMetodoPago() {
+    const arr = obtenerMetodosPago();
+    arr.push({ banco: '', cuenta: '', titular: '', imagen: '' });
+    guardarMetodosPago(arr);
+    cargarMetodoPagoConfig();
     mostrarMetodoPago();
   }
 
-  function cargarImagenPago(input) {
+  function eliminarMetodoPago(idx) {
+    const arr = obtenerMetodosPago();
+    arr.splice(idx, 1);
+    guardarMetodosPago(arr);
+    cargarMetodoPagoConfig();
+    mostrarMetodoPago();
+    showToast('🗑 Método de pago eliminado');
+  }
+
+  function guardarMetodoPagoCampo(idx, campo, val) {
+    const arr = obtenerMetodosPago();
+    if (!arr[idx]) return;
+    arr[idx][campo] = val.trim();
+    guardarMetodosPago(arr);
+    mostrarMetodoPago();
+  }
+
+  function cargarImagenPago(idx, input) {
     const file = input.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (e) => {
-      localStorage.setItem('ochoa_pago_imagen', e.target.result);
-      mostrarMetodoPago();
+      const arr = obtenerMetodosPago();
+      if (!arr[idx]) return;
+      arr[idx].imagen = e.target.result;
+      guardarMetodosPago(arr);
       cargarMetodoPagoConfig();
+      mostrarMetodoPago();
       showToast('🖼️ Imagen del método de pago actualizada');
     };
     reader.readAsDataURL(file);
   }
 
-  function borrarImagenPago() {
-    localStorage.removeItem('ochoa_pago_imagen');
-    mostrarMetodoPago();
+  function borrarImagenPago(idx) {
+    const arr = obtenerMetodosPago();
+    if (!arr[idx]) return;
+    arr[idx].imagen = '';
+    guardarMetodosPago(arr);
     cargarMetodoPagoConfig();
+    mostrarMetodoPago();
     showToast('🗑 Imagen del método de pago eliminada');
   }
 
   function cargarMetodoPagoConfig() {
-    const b = document.getElementById('pago-banco-config');
-    if (b) b.value = localStorage.getItem('ochoa_pago_banco') || '';
-    const c = document.getElementById('pago-cuenta-config');
-    if (c) c.value = localStorage.getItem('ochoa_pago_cuenta') || '';
-    const t = document.getElementById('pago-titular-config');
-    if (t) t.value = localStorage.getItem('ochoa_pago_titular') || '';
-    const prev = document.getElementById('pago-imagen-preview');
-    const img = localStorage.getItem('ochoa_pago_imagen') || '';
-    if (prev) {
-      if (img) { prev.src = img; prev.style.display = 'block'; }
-      else prev.style.display = 'none';
+    const cont = document.getElementById('pago-metodos-config-list');
+    if (!cont) return;
+    const arr = obtenerMetodosPago();
+    if (!arr.length) {
+      cont.innerHTML = '<p style="color:var(--gray);font-size:0.85rem;margin-top:8px">Aún no has agregado ningún método de pago.</p>';
+      return;
     }
+    cont.innerHTML = arr.map((m, i) => `
+      <div style="border:2px dashed #ddd;border-radius:12px;padding:12px;margin-top:10px;position:relative">
+        <button type="button" onclick="eliminarMetodoPago(${i})" title="Eliminar este método de pago" style="position:absolute;top:8px;right:8px;background:transparent;border:none;cursor:pointer;font-size:1rem">🗑</button>
+        <input type="text" value="${escHtml(m.banco || '')}" placeholder="Ej: Bancolombia, Nequi, Daviplata" maxlength="60"
+          style="margin-top:0" oninput="guardarMetodoPagoCampo(${i},'banco',this.value)">
+        <input type="text" value="${escHtml(m.cuenta || '')}" placeholder="Número de cuenta o celular" maxlength="40"
+          style="margin-top:8px" oninput="guardarMetodoPagoCampo(${i},'cuenta',this.value)">
+        <input type="text" value="${escHtml(m.titular || '')}" placeholder="Nombre del titular de la cuenta" maxlength="60"
+          style="margin-top:8px" oninput="guardarMetodoPagoCampo(${i},'titular',this.value)">
+        <div style="margin-top:10px;margin-bottom:4px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <label style="padding:8px 16px;background:var(--magenta);color:#fff;border:2px solid var(--black);border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.82rem;cursor:pointer;text-transform:uppercase;letter-spacing:1px;margin:0">
+            📁 Subir imagen
+            <input type="file" accept="image/*" style="display:none" onchange="cargarImagenPago(${i},this)">
+          </label>
+          <button type="button" onclick="borrarImagenPago(${i})" style="padding:7px 14px;background:transparent;border:2px solid #ddd;border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.78rem;cursor:pointer;color:var(--gray)">🗑 Quitar imagen</button>
+        </div>
+        ${m.imagen ? `<img src="${m.imagen}" style="max-width:140px;border-radius:12px;border:2px solid var(--black);margin-top:6px;display:block">` : ''}
+      </div>
+    `).join('');
   }
 
   function mostrarMetodoPago() {
-    const banco = localStorage.getItem('ochoa_pago_banco') || '';
-    const cuenta = localStorage.getItem('ochoa_pago_cuenta') || '';
-    const titular = localStorage.getItem('ochoa_pago_titular') || '';
-    const img = localStorage.getItem('ochoa_pago_imagen') || '';
+    const metodos = obtenerMetodosPago().filter(m => m.banco || m.cuenta || m.titular || m.imagen);
     const card = document.getElementById('metodo-pago-card');
     if (!card) return;
-    if (!banco && !cuenta && !titular && !img) { card.style.display = 'none'; return; }
+    if (!metodos.length) { card.style.display = 'none'; metodoPagoTotal = 0; return; }
     card.style.display = 'block';
-    const bTxt = document.getElementById('metodo-pago-banco-txt');
-    if (bTxt) bTxt.textContent = banco;
-    const cTxt = document.getElementById('metodo-pago-cuenta-txt');
-    if (cTxt) cTxt.textContent = cuenta;
-    const tTxt = document.getElementById('metodo-pago-titular-txt');
-    if (tTxt) tTxt.textContent = titular;
-    const imgEl = document.getElementById('metodo-pago-img');
-    if (imgEl) {
-      if (img) { imgEl.src = img; imgEl.style.display = 'block'; }
-      else imgEl.style.display = 'none';
+    metodoPagoTotal = metodos.length;
+    if (metodoPagoIndex >= metodoPagoTotal) metodoPagoIndex = 0;
+    const track = document.getElementById('metodo-pago-track');
+    if (track) {
+      track.innerHTML = metodos.map(m => `
+        <div class="metodo-pago-slide" style="min-width:100%;flex-shrink:0;text-align:center;padding:0 2px;box-sizing:border-box">
+          ${m.imagen ? `<img src="${m.imagen}" style="max-width:150px;max-height:150px;object-fit:contain;border-radius:12px;margin:0 auto 12px;border:2px solid var(--black);display:block">` : ''}
+          ${m.banco ? `<p style="margin-bottom:6px"><strong style="color:var(--magenta-dark)">${escHtml(m.banco)}</strong></p>` : ''}
+          ${m.cuenta ? `<p style="margin-bottom:4px;font-size:0.92rem;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap">Número de cuenta: <strong>${escHtml(m.cuenta)}</strong>
+            <button type="button" onclick="copiarCuenta('${escHtml(m.cuenta).replace(/'/g, "\\'")}')" style="padding:4px 10px;background:var(--light);border:1.5px solid var(--magenta-dark);border-radius:20px;font-size:0.72rem;font-weight:800;color:var(--magenta-dark);cursor:pointer;line-height:1.4">📋 Copiar</button>
+          </p>` : ''}
+          ${m.titular ? `<p style="font-size:0.92rem">A nombre de: <strong>${escHtml(m.titular)}</strong></p>` : ''}
+        </div>
+      `).join('');
     }
+    const dots = document.getElementById('metodo-pago-dots');
+    if (dots) {
+      dots.innerHTML = metodos.length > 1
+        ? metodos.map((_, i) => `<span class="metodo-pago-dot" onclick="metodoPagoIrA(${i})" style="width:8px;height:8px;border-radius:50%;background:${i === metodoPagoIndex ? 'var(--magenta-dark)' : '#ddd'};cursor:pointer;display:inline-block"></span>`).join('')
+        : '';
+    }
+    metodoPagoIrA(metodoPagoIndex);
   }
 
-  async function copiarCuenta() {
-    const cuenta = localStorage.getItem('ochoa_pago_cuenta') || '';
+  function metodoPagoIrA(idx) {
+    if (metodoPagoTotal <= 0) return;
+    metodoPagoIndex = ((idx % metodoPagoTotal) + metodoPagoTotal) % metodoPagoTotal;
+    const track = document.getElementById('metodo-pago-track');
+    if (track) track.style.transform = `translateX(-${metodoPagoIndex * 100}%)`;
+    document.querySelectorAll('#metodo-pago-dots .metodo-pago-dot').forEach((d, i) => {
+      d.style.background = i === metodoPagoIndex ? 'var(--magenta-dark)' : '#ddd';
+    });
+  }
+
+  function metodoPagoTouchStart(e) {
+    _metodoPagoTouchX = e.changedTouches[0].clientX;
+  }
+
+  function metodoPagoTouchEnd(e) {
+    if (_metodoPagoTouchX === null) return;
+    const dx = e.changedTouches[0].clientX - _metodoPagoTouchX;
+    _metodoPagoTouchX = null;
+    if (Math.abs(dx) < 40) return;
+    if (dx < 0) metodoPagoIrA(metodoPagoIndex + 1);
+    else metodoPagoIrA(metodoPagoIndex - 1);
+  }
+
+  async function copiarCuenta(cuenta) {
     if (!cuenta) return;
     try {
       await navigator.clipboard.writeText(cuenta);
