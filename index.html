@@ -954,9 +954,11 @@
     <!-- Método de pago (visible solo si el admin lo configuró) -->
     <div class="card" id="metodo-pago-card" style="display:none">
       <h2>💳 Método de pago</h2>
-      <img id="metodo-pago-img" style="display:none;max-width:100%;border-radius:12px;margin-bottom:12px;border:2px solid var(--black)">
+      <img id="metodo-pago-img" style="display:none;max-width:150px;max-height:150px;object-fit:contain;border-radius:12px;margin:0 auto 12px;border:2px solid var(--black)">
       <p style="margin-bottom:6px"><strong id="metodo-pago-banco-txt" style="color:var(--magenta-dark)"></strong></p>
-      <p style="margin-bottom:4px;font-size:0.92rem">Número de cuenta: <strong id="metodo-pago-cuenta-txt"></strong></p>
+      <p style="margin-bottom:4px;font-size:0.92rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap">Número de cuenta: <strong id="metodo-pago-cuenta-txt"></strong>
+        <button type="button" onclick="copiarCuenta()" style="padding:4px 10px;background:var(--light);border:1.5px solid var(--magenta-dark);border-radius:20px;font-size:0.72rem;font-weight:800;color:var(--magenta-dark);cursor:pointer;line-height:1.4">📋 Copiar</button>
+      </p>
       <p style="font-size:0.92rem">A nombre de: <strong id="metodo-pago-titular-txt"></strong></p>
     </div>
 
@@ -1633,6 +1635,26 @@
     if (imgEl) {
       if (img) { imgEl.src = img; imgEl.style.display = 'block'; }
       else imgEl.style.display = 'none';
+    }
+  }
+
+  async function copiarCuenta() {
+    const cuenta = localStorage.getItem('ochoa_pago_cuenta') || '';
+    if (!cuenta) return;
+    try {
+      await navigator.clipboard.writeText(cuenta);
+      showToast('📋 Número de cuenta copiado');
+    } catch {
+      // Fallback para navegadores sin permiso de portapapeles
+      const tmp = document.createElement('textarea');
+      tmp.value = cuenta;
+      tmp.style.position = 'fixed';
+      tmp.style.opacity = '0';
+      document.body.appendChild(tmp);
+      tmp.select();
+      try { document.execCommand('copy'); showToast('📋 Número de cuenta copiado'); }
+      catch { showToast('⚠️ No se pudo copiar'); }
+      document.body.removeChild(tmp);
     }
   }
 
