@@ -951,6 +951,15 @@
       <p class="precio-tag" id="precio-label">Total estimado: <strong>$0</strong> <span style="font-size:.78rem;color:#aaa">(precio a confirmar)</span></p>
     </div>
 
+    <!-- Método de pago (visible solo si el admin lo configuró) -->
+    <div class="card" id="metodo-pago-card" style="display:none">
+      <h2>💳 Método de pago</h2>
+      <img id="metodo-pago-img" style="display:none;max-width:100%;border-radius:12px;margin-bottom:12px;border:2px solid var(--black)">
+      <p style="margin-bottom:6px"><strong id="metodo-pago-banco-txt" style="color:var(--magenta-dark)"></strong></p>
+      <p style="margin-bottom:4px;font-size:0.92rem">Número de cuenta: <strong id="metodo-pago-cuenta-txt"></strong></p>
+      <p style="font-size:0.92rem">A nombre de: <strong id="metodo-pago-titular-txt"></strong></p>
+    </div>
+
     <!-- Datos -->
     <div class="card">
       <h2>📝 Tus datos</h2>
@@ -1034,6 +1043,25 @@
           style="margin-top:0;border-radius:0 12px 12px 0;border-left:none"
           oninput="guardarWaNum(this.value)">
       </div>
+
+      <label style="margin-top:14px;display:block">💳 Método de pago (visible para el cliente)</label>
+      <input type="text" id="pago-banco-config" placeholder="Ej: Bancolombia, Nequi, Daviplata" maxlength="60"
+        style="margin-top:6px"
+        oninput="guardarMetodoPagoCampo('banco', this.value)">
+      <input type="text" id="pago-cuenta-config" placeholder="Número de cuenta o celular" maxlength="40"
+        style="margin-top:8px"
+        oninput="guardarMetodoPagoCampo('cuenta', this.value)">
+      <input type="text" id="pago-titular-config" placeholder="Nombre del titular de la cuenta" maxlength="60"
+        style="margin-top:8px"
+        oninput="guardarMetodoPagoCampo('titular', this.value)">
+      <div style="margin-top:10px;margin-bottom:4px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <label style="padding:8px 16px;background:var(--magenta);color:#fff;border:2px solid var(--black);border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.82rem;cursor:pointer;text-transform:uppercase;letter-spacing:1px;margin:0">
+          📁 Subir imagen
+          <input type="file" accept="image/*" id="pago-imagen-upload-input" style="display:none" onchange="cargarImagenPago(this)">
+        </label>
+        <button onclick="borrarImagenPago()" style="padding:7px 14px;background:transparent;border:2px solid #ddd;border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.78rem;cursor:pointer;color:var(--gray)">🗑 Quitar</button>
+      </div>
+      <img id="pago-imagen-preview" style="display:none;max-width:140px;border-radius:12px;border:2px solid var(--black);margin-top:6px">
     </div>
 
     <div class="stat-row">
@@ -1537,11 +1565,75 @@
       // Mostrar solo los dígitos sin el 57 del prefijo
       wa.value = saved.replace(/^57/, '');
     }
+    cargarMetodoPagoConfig();
   }
 
   function guardarWaNum(val) {
     const digits = val.replace(/\D/g, '');
     localStorage.setItem('ochoa_wa_num', '57' + digits);
+  }
+
+  // ── MÉTODO DE PAGO ──
+  function guardarMetodoPagoCampo(campo, val) {
+    localStorage.setItem('ochoa_pago_' + campo, val.trim());
+    mostrarMetodoPago();
+  }
+
+  function cargarImagenPago(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      localStorage.setItem('ochoa_pago_imagen', e.target.result);
+      mostrarMetodoPago();
+      cargarMetodoPagoConfig();
+      showToast('🖼️ Imagen del método de pago actualizada');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function borrarImagenPago() {
+    localStorage.removeItem('ochoa_pago_imagen');
+    mostrarMetodoPago();
+    cargarMetodoPagoConfig();
+    showToast('🗑 Imagen del método de pago eliminada');
+  }
+
+  function cargarMetodoPagoConfig() {
+    const b = document.getElementById('pago-banco-config');
+    if (b) b.value = localStorage.getItem('ochoa_pago_banco') || '';
+    const c = document.getElementById('pago-cuenta-config');
+    if (c) c.value = localStorage.getItem('ochoa_pago_cuenta') || '';
+    const t = document.getElementById('pago-titular-config');
+    if (t) t.value = localStorage.getItem('ochoa_pago_titular') || '';
+    const prev = document.getElementById('pago-imagen-preview');
+    const img = localStorage.getItem('ochoa_pago_imagen') || '';
+    if (prev) {
+      if (img) { prev.src = img; prev.style.display = 'block'; }
+      else prev.style.display = 'none';
+    }
+  }
+
+  function mostrarMetodoPago() {
+    const banco = localStorage.getItem('ochoa_pago_banco') || '';
+    const cuenta = localStorage.getItem('ochoa_pago_cuenta') || '';
+    const titular = localStorage.getItem('ochoa_pago_titular') || '';
+    const img = localStorage.getItem('ochoa_pago_imagen') || '';
+    const card = document.getElementById('metodo-pago-card');
+    if (!card) return;
+    if (!banco && !cuenta && !titular && !img) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    const bTxt = document.getElementById('metodo-pago-banco-txt');
+    if (bTxt) bTxt.textContent = banco;
+    const cTxt = document.getElementById('metodo-pago-cuenta-txt');
+    if (cTxt) cTxt.textContent = cuenta;
+    const tTxt = document.getElementById('metodo-pago-titular-txt');
+    if (tTxt) tTxt.textContent = titular;
+    const imgEl = document.getElementById('metodo-pago-img');
+    if (imgEl) {
+      if (img) { imgEl.src = img; imgEl.style.display = 'block'; }
+      else imgEl.style.display = 'none';
+    }
   }
 
   function guardarFirebaseConfig() {
@@ -2383,6 +2475,7 @@
   // Init
   changeQty(0);
   mostrarFechaBanner();
+  mostrarMetodoPago();
   // Bloquear menú contextual (largo-presión) en toda la página
   document.addEventListener('contextmenu', e => e.preventDefault());
 
