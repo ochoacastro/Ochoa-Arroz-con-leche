@@ -1106,10 +1106,20 @@
       <div class="config-panel" id="config-panel-carrusel">
         <label style="display:block">🖼️ Carrusel de fotos (se mueve solo, debajo de la fecha)</label>
         <div id="carrusel-fotos-config-list" style="margin-top:10px"></div>
-        <label style="padding:8px 16px;background:var(--magenta);color:#fff;border:2px solid var(--black);border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.82rem;cursor:pointer;text-transform:uppercase;letter-spacing:1px;margin-top:12px;display:inline-block">
-          ➕ Agregar foto(s)
-          <input type="file" accept="image/*" multiple style="display:none" onchange="agregarFotosCarrusel(this)">
-        </label>
+
+        <div style="margin-top:14px;padding-top:12px;border-top:1.5px dashed #ddd">
+          <label style="display:block;font-size:0.78rem;font-weight:800;color:#888;margin-bottom:8px">🔗 Agregar foto desde un link de Google Drive</label>
+          <input type="text" id="carrusel-drive-link-input" placeholder="Pega aquí el link para compartir de Google Drive" style="margin-top:0">
+          <p style="font-size:0.72rem;color:var(--gray);margin:6px 0 0">El archivo debe estar compartido como "Cualquiera con el enlace puede ver".</p>
+          <button type="button" onclick="agregarFotoDriveLink()" style="margin-top:8px;padding:8px 16px;background:var(--magenta);color:#fff;border:2px solid var(--black);border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.82rem;cursor:pointer;text-transform:uppercase;letter-spacing:1px">🔗 Agregar por link de Drive</button>
+        </div>
+
+        <div style="margin-top:14px;padding-top:12px;border-top:1.5px dashed #ddd">
+          <label style="padding:8px 16px;background:var(--magenta);color:#fff;border:2px solid var(--black);border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.82rem;cursor:pointer;text-transform:uppercase;letter-spacing:1px;display:inline-block">
+            📁 Subir foto(s) desde el celular
+            <input type="file" accept="image/*" multiple style="display:none" onchange="agregarFotosCarrusel(this)">
+          </label>
+        </div>
       </div>
     </div>
 
@@ -1874,26 +1884,92 @@
     localStorage.setItem('ochoa_carrusel_fotos', JSON.stringify(arr));
   }
 
+  function _comprimirImagen(dataUrl, maxAncho) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const escala = Math.min(1, maxAncho / img.width);
+        const w = Math.max(1, Math.round(img.width * escala));
+        const h = Math.max(1, Math.round(img.height * escala));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        try { resolve(canvas.toDataURL('image/jpeg', 0.72)); }
+        catch (e) { resolve(dataUrl); }
+      };
+      img.onerror = () => resolve(null);
+      img.src = dataUrl;
+    });
+  }
+
   function agregarFotosCarrusel(input) {
     const files = Array.from(input.files || []);
     if (!files.length) return;
     const arr = obtenerFotosCarrusel();
     let pendientes = files.length;
+    let agregadas = 0;
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = (e) => {
-        arr.push(e.target.result);
+        _comprimirImagen(e.target.result, 1000).then((comprimida) => {
+          if (comprimida) { arr.push(comprimida); agregadas++; }
+          pendientes--;
+          if (pendientes === 0) _guardarFotosCarruselFinal(arr, agregadas);
+        });
+      };
+      reader.onerror = () => {
         pendientes--;
-        if (pendientes === 0) {
-          guardarFotosCarruselArr(arr);
-          cargarCarruselFotosConfig();
-          mostrarCarruselFotos();
-          showToast('🖼️ Fotos agregadas al carrusel');
-        }
+        if (pendientes === 0) _guardarFotosCarruselFinal(arr, agregadas);
       };
       reader.readAsDataURL(file);
     });
     input.value = '';
+  }
+
+  function _guardarFotosCarruselFinal(arr, agregadas) {
+    if (!agregadas) { showToast('⚠️ No se pudo procesar la(s) foto(s)'); return; }
+    try {
+      guardarFotosCarruselArr(arr);
+      cargarCarruselFotosConfig();
+      mostrarCarruselFotos();
+      showToast('🖼️ Fotos agregadas al carrusel');
+    } catch (err) {
+      showToast('⚠️ No cabe: memoria llena. Elimina alguna foto o sube menos a la vez');
+    }
+  }
+
+  function _extraerIdDriveLink(url) {
+    if (!url) return null;
+    const val = url.trim();
+    let m = val.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
+    if (m) return m[1];
+    m = val.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
+    if (m) return m[1];
+    if (/^[a-zA-Z0-9_-]{10,}$/.test(val)) return val;
+    return null;
+  }
+
+  function agregarFotoDriveLink() {
+    const input = document.getElementById('carrusel-drive-link-input');
+    if (!input) return;
+    const id = _extraerIdDriveLink(input.value);
+    if (!id) {
+      showToast('⚠️ No pude leer ese link. Copia el link para "Compartir" del archivo en Drive');
+      return;
+    }
+    const url = `https://drive.google.com/thumbnail?id=${id}&sz=w1200`;
+    const arr = obtenerFotosCarrusel();
+    arr.push(url);
+    try {
+      guardarFotosCarruselArr(arr);
+      cargarCarruselFotosConfig();
+      mostrarCarruselFotos();
+      input.value = '';
+      showToast('🔗 Foto de Google Drive agregada al carrusel');
+    } catch (err) {
+      showToast('⚠️ No se pudo guardar el link');
+    }
   }
 
   function eliminarFotoCarrusel(idx) {
