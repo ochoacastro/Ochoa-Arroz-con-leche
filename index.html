@@ -1442,6 +1442,36 @@
     return parseInt(localStorage.getItem('ochoa_price') || '0', 10);
   }
 
+  // ── PAGOS PARCIALES (permite cobrar unidades de un mismo pedido por separado,
+  //    incluso con métodos de pago distintos) ──
+  function getPagos(o) {
+    if (Array.isArray(o.pagos)) return o.pagos;
+    // Pedidos antiguos (antes de esta función) marcados como pagados de una vez
+    if (o.pagado) {
+      const currentPrice = getPrice();
+      const total = o.total != null ? o.total : (o.precioUnit > 0 ? o.cantidad * o.precioUnit : (currentPrice > 0 ? o.cantidad * currentPrice : 0));
+      return [{ cantidad: o.cantidad, metodo: o.metodoPago || 'Efectivo', monto: total, fecha: o.fecha }];
+    }
+    return [];
+  }
+  function unidadesPagadas(o) {
+    return getPagos(o).reduce((s, p) => s + p.cantidad, 0);
+  }
+  function montoPagado(o) {
+    return getPagos(o).reduce((s, p) => s + p.monto, 0);
+  }
+  function saldoPendienteUnidades(o) {
+    return Math.max(0, o.cantidad - unidadesPagadas(o));
+  }
+  function estaPagadoCompleto(o) {
+    return saldoPendienteUnidades(o) <= 0;
+  }
+  function precioUnitario(o) {
+    if (o.precioUnit > 0) return o.precioUnit;
+    const currentPrice = getPrice();
+    return currentPrice > 0 ? currentPrice : 0;
+  }
+
   function changeQty(d) {
     qty = Math.max(1, qty + d);
     document.getElementById('qty-display').textContent = qty;
@@ -1550,6 +1580,7 @@
       fechaEntrega,
       entregado: false,
       pagado: false,
+      pagos: [],
       fecha: new Date().toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })
     };
 
@@ -2364,7 +2395,7 @@
     const orders = getOrders();
     const pending = orders.filter(o => !o.entregado);
     const done = orders.filter(o => o.entregado);
-    const sinCobrar = orders.filter(o => o.entregado && !o.pagado);
+    const sinCobrar = orders.filter(o => o.entregado && !estaPagadoCompleto(o));
     const units = pending.reduce((s, o) => s + o.cantidad, 0);
     const currentPrice = getPrice();
 
@@ -2374,27 +2405,21 @@
       return s + p;
     }, 0);
 
-    // Total cobrado: suma totales de pedidos pagados
-    const cobrado = orders.filter(o => o.pagado).reduce((s, o) => {
-      const p = o.total != null ? o.total : (currentPrice > 0 ? o.cantidad * currentPrice : 0);
-      return s + p;
-    }, 0);
+    // Total cobrado: suma de abonos/pagos de todos los pedidos (incluye pagos parciales)
+    const cobrado = orders.reduce((s, o) => s + montoPagado(o), 0);
 
-    // Por cobrar: entregados pero no pagados
+    // Por cobrar: saldo pendiente de pedidos entregados que no están pagados por completo
     const porCobrar = sinCobrar.reduce((s, o) => {
-      const p = o.total != null ? o.total : (currentPrice > 0 ? o.cantidad * currentPrice : 0);
-      return s + p;
+      const totalPed = o.total != null ? o.total : (currentPrice > 0 ? o.cantidad * currentPrice : 0);
+      return s + (totalPed - montoPagado(o));
     }, 0);
 
-    // Cobrado por método de pago (solo pedidos pagados)
-    const pagados = orders.filter(o => o.pagado);
-    const cobradoEfectivo = pagados.filter(o => o.metodoPago === 'Efectivo').reduce((s, o) => {
-      const p = o.total != null ? o.total : (currentPrice > 0 ? o.cantidad * currentPrice : 0);
-      return s + p;
+    // Cobrado por método de pago (suma cada abono según su propio método)
+    const cobradoEfectivo = orders.reduce((s, o) => {
+      return s + getPagos(o).filter(p => p.metodo === 'Efectivo').reduce((s2, p) => s2 + p.monto, 0);
     }, 0);
-    const cobradoNequi = pagados.filter(o => o.metodoPago === 'Nequi').reduce((s, o) => {
-      const p = o.total != null ? o.total : (currentPrice > 0 ? o.cantidad * currentPrice : 0);
-      return s + p;
+    const cobradoNequi = orders.reduce((s, o) => {
+      return s + getPagos(o).filter(p => p.metodo === 'Nequi').reduce((s2, p) => s2 + p.monto, 0);
     }, 0);
 
     document.getElementById('stat-pending').textContent = pending.length;
@@ -2427,14 +2452,22 @@
     }
 
     container.innerHTML = filtered.map(o => {
+      const totalNum = o.total != null ? o.total : (currentPrice > 0 ? o.cantidad * currentPrice : 0);
       const totalPedido = o.total != null
         ? `$${o.total.toLocaleString('es-CO')}`
         : (currentPrice > 0 ? `$${(o.cantidad * currentPrice).toLocaleString('es-CO')}` : null);
 
-      const cardClass = o.entregado ? (o.pagado ? 'delivered' : 'delivered unpaid') : '';
+      const unidadesPag = unidadesPagadas(o);
+      const pagadoCompleto = estaPagadoCompleto(o);
+
+      const cardClass = o.entregado ? (pagadoCompleto ? 'delivered' : 'delivered unpaid') : '';
 
       const badgePago = o.entregado
-        ? `<span class="badge-pago ${o.pagado ? 'pagado' : 'pendiente-cobro'}">${o.pagado ? 'Pagado' : 'Sin cobrar'}</span>`
+        ? (pagadoCompleto
+            ? `<span class="badge-pago pagado">Pagado</span>`
+            : (unidadesPag > 0
+                ? `<span class="badge-pago pendiente-cobro">Parcial ${unidadesPag}/${o.cantidad}</span>`
+                : `<span class="badge-pago pendiente-cobro">Sin cobrar</span>`))
         : '';
 
       // SVG icons
@@ -2508,14 +2541,23 @@
               <span class="info-text">${escHtml(o.fechaEntrega)}</span>
             </div>` : ''}
 
+            ${unidadesPag > 0 ? (() => {
+              const pagosArr = getPagos(o);
+              const efectivoPagado = pagosArr.filter(p => p.metodo === 'Efectivo').reduce((s, p) => s + p.monto, 0);
+              const nequiPagado = pagosArr.filter(p => p.metodo === 'Nequi').reduce((s, p) => s + p.monto, 0);
+              const saldo = totalNum - montoPagado(o);
+              return `
             <div class="order-info-row">
-              <div class="info-icon" style="font-size:0.85rem">${o.metodoPago === 'Nequi' ? '📱' : '💵'}</div>
-              ${o.metodoPago ? `
-                <span class="info-text" style="font-weight:800;color:${o.metodoPago === 'Nequi' ? '#6236FF' : '#1a7a4a'}">${escHtml(o.metodoPago)}</span>
-              ` : `
-                <span class="info-text" style="color:var(--gray);font-style:italic;font-size:0.82rem">💳 Sin asignar (se asigna al cobrar)</span>
-              `}
-            </div>
+              <div class="info-icon" style="font-size:0.85rem">💰</div>
+              <span class="info-text" style="font-weight:800;color:#1a7a4a">
+                ${efectivoPagado > 0 ? `💵 $${efectivoPagado.toLocaleString('es-CO')}` : ''}${efectivoPagado > 0 && nequiPagado > 0 ? ' · ' : ''}${nequiPagado > 0 ? `📱 $${nequiPagado.toLocaleString('es-CO')}` : ''}${!pagadoCompleto ? ` · Saldo: $${saldo.toLocaleString('es-CO')}` : ''}
+              </span>
+            </div>`;
+            })() : `
+            <div class="order-info-row">
+              <div class="info-icon" style="font-size:0.85rem">💵</div>
+              <span class="info-text" style="color:var(--gray);font-style:italic;font-size:0.82rem">💳 Sin asignar (se asigna al cobrar)</span>
+            </div>`}
 
           </div>
 
@@ -2541,8 +2583,8 @@
               ${o.entregado ? svgCheck+' ✔ Entregado' : '☐ Marcar entregado'}
             </button>
             ${o.entregado ? `
-            <button class="btn-action ${o.pagado ? 'pay-done' : 'pay-pending'}" onclick="togglePagado(${o.id})" ${o.pagado ? 'disabled title="Ya marcado como cobrado"' : ''}>
-              ${o.pagado ? svgCheck+' ✔ Cobrado' : '☐ Cobrar'}
+            <button class="btn-action ${pagadoCompleto ? 'pay-done' : 'pay-pending'}" onclick="togglePagado(${o.id})" ${pagadoCompleto ? 'disabled title="Ya marcado como cobrado"' : ''}>
+              ${pagadoCompleto ? svgCheck+' ✔ Cobrado' : (unidadesPag > 0 ? `☐ Cobrar resto (${o.cantidad - unidadesPag})` : '☐ Cobrar')}
             </button>` : ''}
           </div>
         </div>
@@ -2643,6 +2685,8 @@
       const orders = getOrders();
       const o = orders.find(x => x.id === id);
       if (!o) return;
+      const yaPagadas = unidadesPagadas(o);
+      if (cant < yaPagadas) { showToast(`⚠️ Ya se cobraron ${yaPagadas} unidad${yaPagadas !== 1 ? 'es' : ''}, no puedes bajar la cantidad de eso`); return; }
       o.cantidad = cant;
       if (o.precioUnit > 0) o.total = cant * o.precioUnit;
       const updates = { cantidad: cant };
@@ -2717,6 +2761,8 @@
       if (!direccion) { showToast('⚠️ La dirección no puede quedar vacía'); return; }
       if (!telefono) { showToast('⚠️ El teléfono no puede quedar vacío'); return; }
       if (isNaN(cantidad) || cantidad < 1) { showToast('⚠️ Ingresa una cantidad válida (mínimo 1)'); return; }
+      const yaPagadas = unidadesPagadas(o);
+      if (cantidad < yaPagadas) { showToast(`⚠️ Ya se cobraron ${yaPagadas} unidad${yaPagadas !== 1 ? 'es' : ''}, no puedes bajar la cantidad de eso`); return; }
 
       document.body.removeChild(overlay);
 
@@ -2823,11 +2869,9 @@
     const orders = getOrders();
     const o = orders.find(x => x.id === id);
     if (!o) return;
-    if (o.pagado) return; // ya cobrado: queda bloqueado, no se puede desmarcar
+    if (estaPagadoCompleto(o)) return; // ya cobrado por completo: queda bloqueado
 
-    confirmarAccion('💰 MARCAR COBRADO', '¿Seguro que desea marcar este pedido como cobrado?', () => {
-      abrirSeleccionMetodoPago(id);
-    });
+    abrirSeleccionMetodoPago(id);
   }
 
   function abrirSeleccionMetodoPago(id) {
@@ -2835,12 +2879,26 @@
     const o = orders.find(x => x.id === id);
     if (!o) return;
 
+    const pendientes = saldoPendienteUnidades(o);
+    if (pendientes <= 0) return;
+    const unitPrice = precioUnitario(o);
+    let cobrarCant = pendientes;
+
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:24px';
     overlay.innerHTML = `
       <div style="background:#fff;border:3px solid #111;border-radius:20px;padding:24px 20px;max-width:300px;width:100%;box-shadow:6px 6px 0 #111;text-align:center">
         <p style="font-family:'Black Han Sans',sans-serif;font-size:1.1rem;letter-spacing:1.5px;color:#8f0e4e;margin-bottom:6px">💰 COBRAR</p>
-        <p style="font-size:0.8rem;color:#888;font-weight:700;margin-bottom:18px">¿Cómo pagó el cliente?</p>
+        <p style="font-size:0.8rem;color:#888;font-weight:700;margin-bottom:14px">Pendiente: ${pendientes} unidad${pendientes !== 1 ? 'es' : ''}</p>
+        ${pendientes > 1 ? `
+        <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:6px">
+          <button id="cobrar-menos" style="width:36px;height:36px;border-radius:50%;border:2.5px solid #111;background:#fff;font-size:1.2rem;font-weight:900;cursor:pointer">−</button>
+          <span id="cobrar-cant-display" style="font-family:'Black Han Sans',sans-serif;font-size:1.4rem;min-width:28px">${cobrarCant}</span>
+          <button id="cobrar-mas" style="width:36px;height:36px;border-radius:50%;border:2.5px solid #111;background:#fff;font-size:1.2rem;font-weight:900;cursor:pointer">+</button>
+        </div>
+        <p style="font-size:0.75rem;color:#aaa;font-weight:700;margin-bottom:14px">unidades a cobrar ahora</p>` : ''}
+        ${unitPrice > 0 ? `<p id="cobrar-monto-display" style="font-size:0.95rem;color:#1a7a4a;font-weight:800;margin-bottom:14px">$${(cobrarCant * unitPrice).toLocaleString('es-CO')}</p>` : ''}
+        <p style="font-size:0.8rem;color:#888;font-weight:700;margin-bottom:14px">¿Cómo pagó el cliente?</p>
         <div style="display:flex;gap:12px;justify-content:center">
           <button id="cobrar-ef" style="flex:1;padding:14px 10px;border:2.5px solid #ddd;border-radius:14px;background:#fff;font-family:'Nunito',sans-serif;font-weight:800;font-size:1rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:border-color .15s">
             <span style="font-size:1.8rem">💵</span> Efectivo
@@ -2853,19 +2911,46 @@
       </div>`;
     document.body.appendChild(overlay);
 
+    if (pendientes > 1) {
+      const disp = overlay.querySelector('#cobrar-cant-display');
+      const montoDisp = overlay.querySelector('#cobrar-monto-display');
+      overlay.querySelector('#cobrar-menos').onclick = () => {
+        cobrarCant = Math.max(1, cobrarCant - 1);
+        disp.textContent = cobrarCant;
+        if (montoDisp) montoDisp.textContent = '$' + (cobrarCant * unitPrice).toLocaleString('es-CO');
+      };
+      overlay.querySelector('#cobrar-mas').onclick = () => {
+        cobrarCant = Math.min(pendientes, cobrarCant + 1);
+        disp.textContent = cobrarCant;
+        if (montoDisp) montoDisp.textContent = '$' + (cobrarCant * unitPrice).toLocaleString('es-CO');
+      };
+    }
+
     function confirmarCobro(metodo) {
       document.body.removeChild(overlay);
-      const updates = { pagado: true, metodoPago: metodo };
+      const pagosActuales = getPagos(o).slice();
+      pagosActuales.push({
+        cantidad: cobrarCant,
+        metodo,
+        monto: cobrarCant * unitPrice,
+        fecha: new Date().toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })
+      });
+      const totalUnidadesPagadas = pagosActuales.reduce((s, p) => s + p.cantidad, 0);
+      const completo = totalUnidadesPagadas >= o.cantidad;
+      const updates = { pagos: pagosActuales, pagado: completo, metodoPago: metodo };
       if (window._fbDB && o.fbKey) {
         const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
         window._fbUpdate(pedidoRef, updates);
       } else {
-        o.pagado = true;
+        o.pagos = pagosActuales;
+        o.pagado = completo;
         o.metodoPago = metodo;
         saveOrders(orders);
         renderOrders();
       }
-      showToast(metodo === 'Nequi' ? '📱 Cobrado por Nequi' : '💵 Cobrado en efectivo');
+      showToast(completo
+        ? (metodo === 'Nequi' ? '📱 Cobrado por Nequi' : '💵 Cobrado en efectivo')
+        : `⏳ Abono registrado — quedan ${o.cantidad - totalUnidadesPagadas} por cobrar`);
     }
 
     overlay.querySelector('#cobrar-ef').onclick = () => confirmarCobro('Efectivo');
@@ -2914,13 +2999,13 @@
     const total = orders.length;
     const entregados = orders.filter(o => o.entregado).length;
     const pendientes = total - entregados;
-    const sinCobrar = orders.filter(o => o.entregado && !o.pagado).length;
+    const sinCobrarOrders = orders.filter(o => o.entregado && !estaPagadoCompleto(o));
+    const sinCobrar = sinCobrarOrders.length;
     const unidades = orders.reduce((s, o) => s + o.cantidad, 0);
-    const cobrado = orders.filter(o => o.pagado).reduce((s, o) => {
-      return s + (o.total != null ? o.total : (currentPrice > 0 ? o.cantidad * currentPrice : 0));
-    }, 0);
-    const porCobrar = orders.filter(o => o.entregado && !o.pagado).reduce((s, o) => {
-      return s + (o.total != null ? o.total : (currentPrice > 0 ? o.cantidad * currentPrice : 0));
+    const cobrado = orders.reduce((s, o) => s + montoPagado(o), 0);
+    const porCobrar = sinCobrarOrders.reduce((s, o) => {
+      const totalPed = o.total != null ? o.total : (currentPrice > 0 ? o.cantidad * currentPrice : 0);
+      return s + (totalPed - montoPagado(o));
     }, 0);
 
     document.getElementById('modal-resumen-txt').innerHTML = `
