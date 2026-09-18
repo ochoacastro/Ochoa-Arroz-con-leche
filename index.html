@@ -1386,6 +1386,39 @@
     if (typeof mostrarMetodoPago === 'function') mostrarMetodoPago();
     if (typeof cargarMetodoPagoConfig === 'function') cargarMetodoPagoConfig();
   });
+
+  // Escuchar precio, fecha de entrega y número de WhatsApp en tiempo real
+  const configGeneralRef = ref(db, 'config/general');
+  onValue(configGeneralRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data === null) {
+      // Firebase aún no tiene datos: si este celular tiene configuración local
+      // previa (de antes de la sincronización), la sube como fuente inicial
+      const local = {};
+      const price = localStorage.getItem('ochoa_price');
+      const fechaTexto = localStorage.getItem('ochoa_fecha_entrega');
+      const fechaRaw = localStorage.getItem('ochoa_fecha_entrega_raw');
+      const waNum = localStorage.getItem('ochoa_wa_num');
+      if (price) local.precio = price;
+      if (fechaTexto) local.fechaEntregaTexto = fechaTexto;
+      if (fechaRaw) local.fechaEntregaRaw = fechaRaw;
+      if (waNum) local.waNum = waNum;
+      if (Object.keys(local).length) set(configGeneralRef, local).catch(e => console.error('Firebase config init error:', e));
+      if (typeof mostrarFechaBanner === 'function') mostrarFechaBanner();
+      if (typeof changeQty === 'function') changeQty(0);
+      if (typeof cargarPrecioConfig === 'function') cargarPrecioConfig();
+      return;
+    }
+    if (data.precio !== undefined) localStorage.setItem('ochoa_price', String(data.precio));
+    if (data.fechaEntregaTexto) localStorage.setItem('ochoa_fecha_entrega', data.fechaEntregaTexto);
+    else localStorage.removeItem('ochoa_fecha_entrega');
+    if (data.fechaEntregaRaw) localStorage.setItem('ochoa_fecha_entrega_raw', data.fechaEntregaRaw);
+    else localStorage.removeItem('ochoa_fecha_entrega_raw');
+    if (data.waNum) localStorage.setItem('ochoa_wa_num', data.waNum);
+    if (typeof mostrarFechaBanner === 'function') mostrarFechaBanner();
+    if (typeof changeQty === 'function') changeQty(0);
+    if (typeof cargarPrecioConfig === 'function') cargarPrecioConfig();
+  });
 </script>
 
 <script>
@@ -1677,12 +1710,26 @@
   // ── PRECIO CONFIG ──
   function guardarPrecio(val) {
     const v = parseInt(val, 10);
-    localStorage.setItem('ochoa_price', isNaN(v) ? '0' : String(v));
+    const precio = isNaN(v) ? '0' : String(v);
+    localStorage.setItem('ochoa_price', precio);
     changeQty(0);
+    if (window._fbDB) {
+      window._fbUpdate(window._fbRef(window._fbDB, 'config/general'), { precio })
+        .catch(e => console.error('Firebase precio error:', e));
+    }
   }
 
   function guardarFechaEntrega(val) {
-    if (!val) { localStorage.removeItem('ochoa_fecha_entrega'); mostrarFechaBanner(); return; }
+    if (!val) {
+      localStorage.removeItem('ochoa_fecha_entrega');
+      localStorage.removeItem('ochoa_fecha_entrega_raw');
+      mostrarFechaBanner();
+      if (window._fbDB) {
+        window._fbUpdate(window._fbRef(window._fbDB, 'config/general'), { fechaEntregaTexto: null, fechaEntregaRaw: null })
+          .catch(e => console.error('Firebase fecha error:', e));
+      }
+      return;
+    }
     // Formatear YYYY-MM-DD → "Sábado 7 de junio"
     const [y, m, d] = val.split('-').map(Number);
     const fecha = new Date(y, m - 1, d);
@@ -1691,6 +1738,10 @@
     localStorage.setItem('ochoa_fecha_entrega', texto);
     localStorage.setItem('ochoa_fecha_entrega_raw', val);
     mostrarFechaBanner();
+    if (window._fbDB) {
+      window._fbUpdate(window._fbRef(window._fbDB, 'config/general'), { fechaEntregaTexto: texto, fechaEntregaRaw: val })
+        .catch(e => console.error('Firebase fecha error:', e));
+    }
   }
 
   function mostrarFechaBanner() {
@@ -1721,7 +1772,12 @@
 
   function guardarWaNum(val) {
     const digits = val.replace(/\D/g, '');
-    localStorage.setItem('ochoa_wa_num', '57' + digits);
+    const waNum = '57' + digits;
+    localStorage.setItem('ochoa_wa_num', waNum);
+    if (window._fbDB) {
+      window._fbUpdate(window._fbRef(window._fbDB, 'config/general'), { waNum })
+        .catch(e => console.error('Firebase waNum error:', e));
+    }
   }
 
   // ── MÉTODOS DE PAGO (múltiples, con carrusel para el cliente) ──
