@@ -962,6 +962,13 @@
       <div id="fecha-entrega-banner" style="display:none;margin-top:10px;background:rgba(0,0,0,.18);border-radius:10px;padding:6px 14px;color:#fff;font-size:0.85rem;font-weight:800;letter-spacing:1px;position:relative">
         📅 <span id="fecha-entrega-txt"></span>
       </div>
+      <div id="carrusel-fotos-card" style="display:none;margin-top:14px;border-radius:14px;overflow:hidden;border:3px solid var(--black);position:relative">
+        <div id="carrusel-fotos" style="overflow:hidden;position:relative;touch-action:pan-y"
+          ontouchstart="carruselFotosTouchStart(event)" ontouchend="carruselFotosTouchEnd(event)">
+          <div id="carrusel-fotos-track" style="display:flex;transition:transform .4s ease"></div>
+        </div>
+        <div id="carrusel-fotos-dots" style="display:flex;justify-content:center;gap:6px;padding:8px 0;background:rgba(0,0,0,.18)"></div>
+      </div>
     </div>
 
     <!-- Cantidad -->
@@ -1046,6 +1053,7 @@
         <button class="config-tab-btn" onclick="showConfigTab('logo', this)">🖼️ Logo</button>
         <button class="config-tab-btn" onclick="showConfigTab('whatsapp', this)">📱 WhatsApp</button>
         <button class="config-tab-btn" onclick="showConfigTab('pagos', this)">💳 Pagos</button>
+        <button class="config-tab-btn" onclick="showConfigTab('carrusel', this)">🖼️ Carrusel</button>
       </div>
 
       <div class="config-panel active" id="config-panel-precio">
@@ -1093,6 +1101,15 @@
         <label style="display:block">💳 Métodos de pago (visibles para el cliente)</label>
         <div id="pago-metodos-config-list"></div>
         <button type="button" onclick="agregarMetodoPago()" style="margin-top:10px;padding:8px 16px;background:var(--magenta);color:#fff;border:2px solid var(--black);border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.82rem;cursor:pointer;text-transform:uppercase;letter-spacing:1px">➕ Agregar método de pago</button>
+      </div>
+
+      <div class="config-panel" id="config-panel-carrusel">
+        <label style="display:block">🖼️ Carrusel de fotos (se mueve solo, debajo de la fecha)</label>
+        <div id="carrusel-fotos-config-list" style="margin-top:10px"></div>
+        <label style="padding:8px 16px;background:var(--magenta);color:#fff;border:2px solid var(--black);border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.82rem;cursor:pointer;text-transform:uppercase;letter-spacing:1px;margin-top:12px;display:inline-block">
+          ➕ Agregar foto(s)
+          <input type="file" accept="image/*" multiple style="display:none" onchange="agregarFotosCarrusel(this)">
+        </label>
       </div>
     </div>
 
@@ -1607,6 +1624,7 @@
       wa.value = saved.replace(/^57/, '');
     }
     cargarMetodoPagoConfig();
+    cargarCarruselFotosConfig();
   }
 
   function guardarWaNum(val) {
@@ -1836,6 +1854,127 @@
       try { document.execCommand('copy'); showToast('📋 Número de cuenta copiado'); }
       catch { showToast('⚠️ No se pudo copiar'); }
       document.body.removeChild(tmp);
+    }
+  }
+
+  // ── CARRUSEL DE FOTOS (autoplay, debajo de la fecha) ──
+  let carruselFotosIndex = 0;
+  let carruselFotosTotal = 0;
+  let _carruselFotosTouchX = null;
+  let _carruselFotosTimer = null;
+
+  function obtenerFotosCarrusel() {
+    try {
+      const arr = JSON.parse(localStorage.getItem('ochoa_carrusel_fotos') || '[]');
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) { return []; }
+  }
+
+  function guardarFotosCarruselArr(arr) {
+    localStorage.setItem('ochoa_carrusel_fotos', JSON.stringify(arr));
+  }
+
+  function agregarFotosCarrusel(input) {
+    const files = Array.from(input.files || []);
+    if (!files.length) return;
+    const arr = obtenerFotosCarrusel();
+    let pendientes = files.length;
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        arr.push(e.target.result);
+        pendientes--;
+        if (pendientes === 0) {
+          guardarFotosCarruselArr(arr);
+          cargarCarruselFotosConfig();
+          mostrarCarruselFotos();
+          showToast('🖼️ Fotos agregadas al carrusel');
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    input.value = '';
+  }
+
+  function eliminarFotoCarrusel(idx) {
+    const arr = obtenerFotosCarrusel();
+    arr.splice(idx, 1);
+    guardarFotosCarruselArr(arr);
+    cargarCarruselFotosConfig();
+    mostrarCarruselFotos();
+    showToast('🗑 Foto eliminada del carrusel');
+  }
+
+  function cargarCarruselFotosConfig() {
+    const cont = document.getElementById('carrusel-fotos-config-list');
+    if (!cont) return;
+    const arr = obtenerFotosCarrusel();
+    if (!arr.length) {
+      cont.innerHTML = '<p style="color:var(--gray);font-size:0.85rem">Aún no has agregado ninguna foto.</p>';
+      return;
+    }
+    cont.innerHTML = arr.map((foto, i) => `
+      <div style="position:relative;display:inline-block;margin:0 10px 10px 0">
+        <img src="${foto}" style="width:80px;height:80px;object-fit:cover;border-radius:10px;border:2px solid var(--black);display:block">
+        <button type="button" onclick="eliminarFotoCarrusel(${i})" title="Eliminar foto" style="position:absolute;top:-8px;right:-8px;background:var(--magenta);color:#fff;border:2px solid var(--black);border-radius:50%;width:24px;height:24px;font-size:0.75rem;cursor:pointer;line-height:1;padding:0">✕</button>
+      </div>
+    `).join('');
+  }
+
+  function mostrarCarruselFotos() {
+    const fotos = obtenerFotosCarrusel();
+    const card = document.getElementById('carrusel-fotos-card');
+    if (!card) return;
+    clearInterval(_carruselFotosTimer);
+    if (!fotos.length) { card.style.display = 'none'; carruselFotosTotal = 0; return; }
+    card.style.display = 'block';
+    carruselFotosTotal = fotos.length;
+    if (carruselFotosIndex >= carruselFotosTotal) carruselFotosIndex = 0;
+    const track = document.getElementById('carrusel-fotos-track');
+    if (track) {
+      track.innerHTML = fotos.map(f => `
+        <div style="min-width:100%;flex-shrink:0;box-sizing:border-box">
+          <img src="${f}" style="width:100%;height:180px;object-fit:cover;display:block">
+        </div>
+      `).join('');
+    }
+    const dots = document.getElementById('carrusel-fotos-dots');
+    if (dots) {
+      dots.innerHTML = fotos.length > 1
+        ? fotos.map((_, i) => `<span class="carrusel-fotos-dot" onclick="carruselFotosIrA(${i})" style="width:8px;height:8px;border-radius:50%;background:${i === carruselFotosIndex ? '#fff' : 'rgba(255,255,255,.4)'};cursor:pointer;display:inline-block"></span>`).join('')
+        : '';
+    }
+    carruselFotosIrA(carruselFotosIndex);
+    if (fotos.length > 1) {
+      _carruselFotosTimer = setInterval(() => carruselFotosIrA(carruselFotosIndex + 1), 3500);
+    }
+  }
+
+  function carruselFotosIrA(idx) {
+    if (carruselFotosTotal <= 0) return;
+    carruselFotosIndex = ((idx % carruselFotosTotal) + carruselFotosTotal) % carruselFotosTotal;
+    const track = document.getElementById('carrusel-fotos-track');
+    if (track) track.style.transform = `translateX(-${carruselFotosIndex * 100}%)`;
+    document.querySelectorAll('#carrusel-fotos-dots .carrusel-fotos-dot').forEach((d, i) => {
+      d.style.background = i === carruselFotosIndex ? '#fff' : 'rgba(255,255,255,.4)';
+    });
+  }
+
+  function carruselFotosTouchStart(e) {
+    _carruselFotosTouchX = e.changedTouches[0].clientX;
+    clearInterval(_carruselFotosTimer);
+  }
+
+  function carruselFotosTouchEnd(e) {
+    if (_carruselFotosTouchX === null) return;
+    const dx = e.changedTouches[0].clientX - _carruselFotosTouchX;
+    _carruselFotosTouchX = null;
+    if (Math.abs(dx) >= 40) {
+      if (dx < 0) carruselFotosIrA(carruselFotosIndex + 1);
+      else carruselFotosIrA(carruselFotosIndex - 1);
+    }
+    if (carruselFotosTotal > 1) {
+      _carruselFotosTimer = setInterval(() => carruselFotosIrA(carruselFotosIndex + 1), 3500);
     }
   }
 
@@ -2758,6 +2897,7 @@
   changeQty(0);
   mostrarFechaBanner();
   mostrarMetodoPago();
+  mostrarCarruselFotos();
   // Bloquear menú contextual (largo-presión) en toda la página
   document.addEventListener('contextmenu', e => e.preventDefault());
 
