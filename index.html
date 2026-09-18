@@ -1754,6 +1754,34 @@
     showToast('🗑 Imagen del método de pago eliminada');
   }
 
+  function guardarImagenPagoDesdeDrive(idx) {
+    const input = document.getElementById('drive-link-imagen-' + idx);
+    if (!input) return;
+    const id = _extraerIdDriveLink(input.value);
+    if (!id) { showToast('⚠️ No pude leer ese link. Copia el link para "Compartir" del archivo en Drive'); return; }
+    const arr = obtenerMetodosPago();
+    if (!arr[idx]) return;
+    arr[idx].imagen = `https://drive.google.com/thumbnail?id=${id}&sz=w1200`;
+    guardarMetodosPago(arr);
+    cargarMetodoPagoConfig();
+    mostrarMetodoPago();
+    showToast('🔗 Imagen de Google Drive agregada');
+  }
+
+  function guardarQRPagoDesdeDrive(idx) {
+    const input = document.getElementById('drive-link-qr-' + idx);
+    if (!input) return;
+    const id = _extraerIdDriveLink(input.value);
+    if (!id) { showToast('⚠️ No pude leer ese link. Copia el link para "Compartir" del archivo en Drive'); return; }
+    const arr = obtenerMetodosPago();
+    if (!arr[idx]) return;
+    arr[idx].qr = `https://drive.google.com/thumbnail?id=${id}&sz=w1200`;
+    guardarMetodosPago(arr);
+    cargarMetodoPagoConfig();
+    mostrarMetodoPago();
+    showToast('🔗 Código QR de Google Drive agregado');
+  }
+
   function cargarMetodoPagoConfig() {
     const cont = document.getElementById('pago-metodos-config-list');
     if (!cont) return;
@@ -1778,6 +1806,10 @@
           </label>
           <button type="button" onclick="borrarImagenPago(${i})" style="padding:7px 14px;background:transparent;border:2px solid #ddd;border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.78rem;cursor:pointer;color:var(--gray)">🗑 Quitar imagen</button>
         </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
+          <input type="text" id="drive-link-imagen-${i}" placeholder="O pega aquí un link de Google Drive" style="margin-top:0;flex:1;min-width:180px">
+          <button type="button" onclick="guardarImagenPagoDesdeDrive(${i})" style="padding:7px 14px;background:transparent;border:2px solid var(--magenta-dark);border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.78rem;cursor:pointer;color:var(--magenta-dark);white-space:nowrap">🔗 Usar link</button>
+        </div>
         ${m.imagen ? `<img src="${m.imagen}" style="max-width:140px;border-radius:12px;border:2px solid var(--black);margin-top:6px;display:block">` : ''}
 
         <div style="margin-top:14px;padding-top:12px;border-top:1.5px dashed #ddd">
@@ -1788,6 +1820,10 @@
               <input type="file" accept="image/*" style="display:none" onchange="cargarQRPago(${i},this)">
             </label>
             <button type="button" onclick="borrarQRPago(${i})" style="padding:7px 14px;background:transparent;border:2px solid #ddd;border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.78rem;cursor:pointer;color:var(--gray)">🗑 Quitar QR</button>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+            <input type="text" id="drive-link-qr-${i}" placeholder="O pega aquí un link de Google Drive" style="margin-top:0;flex:1;min-width:180px">
+            <button type="button" onclick="guardarQRPagoDesdeDrive(${i})" style="padding:7px 14px;background:transparent;border:2px solid var(--magenta-dark);border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.78rem;cursor:pointer;color:var(--magenta-dark);white-space:nowrap">🔗 Usar link</button>
           </div>
           ${m.qr ? `<img src="${m.qr}" style="max-width:140px;border-radius:12px;border:2px solid var(--black);margin-top:10px;display:block">` : ''}
         </div>
