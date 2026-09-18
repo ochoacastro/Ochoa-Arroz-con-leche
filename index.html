@@ -1345,6 +1345,18 @@
   const carruselRef = ref(db, 'config/carruselFotos');
   onValue(carruselRef, (snapshot) => {
     const data = snapshot.val();
+    if (data === null) {
+      // Firebase aún no tiene datos: si este celular sí tiene fotos guardadas
+      // localmente (de antes de la sincronización), las sube como fuente inicial
+      let local = [];
+      try { local = JSON.parse(localStorage.getItem('ochoa_carrusel_fotos') || '[]'); } catch (e) {}
+      if (!Array.isArray(local)) local = [];
+      if (local.length) set(carruselRef, local).catch(e => console.error('Firebase carrusel init error:', e));
+      window._carruselFotosCache = local;
+      if (typeof mostrarCarruselFotos === 'function') mostrarCarruselFotos();
+      if (typeof cargarCarruselFotosConfig === 'function') cargarCarruselFotosConfig();
+      return;
+    }
     const arr = Array.isArray(data) ? data : [];
     localStorage.setItem('ochoa_carrusel_fotos', JSON.stringify(arr));
     window._carruselFotosCache = arr;
@@ -1356,6 +1368,18 @@
   const metodosPagoRef = ref(db, 'config/metodosPago');
   onValue(metodosPagoRef, (snapshot) => {
     const data = snapshot.val();
+    if (data === null) {
+      // Firebase aún no tiene datos: si este celular sí tiene métodos de pago
+      // guardados localmente (de antes de la sincronización), los sube como fuente inicial
+      let local = [];
+      try { local = JSON.parse(localStorage.getItem('ochoa_metodos_pago') || '[]'); } catch (e) {}
+      if (!Array.isArray(local)) local = [];
+      if (local.length) set(metodosPagoRef, local).catch(e => console.error('Firebase metodosPago init error:', e));
+      window._metodosPagoCache = local;
+      if (typeof mostrarMetodoPago === 'function') mostrarMetodoPago();
+      if (typeof cargarMetodoPagoConfig === 'function') cargarMetodoPagoConfig();
+      return;
+    }
     const arr = Array.isArray(data) ? data : [];
     localStorage.setItem('ochoa_metodos_pago', JSON.stringify(arr));
     window._metodosPagoCache = arr;
