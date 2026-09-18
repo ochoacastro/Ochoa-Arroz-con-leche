@@ -170,6 +170,33 @@
     position: relative;
   }
 
+  /* ── MÉTODO DE PAGO: FLECHAS DEL CARRUSEL ── */
+  .metodo-pago-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--magenta);
+    color: #fff;
+    border: 2.5px solid var(--black);
+    font-size: 1.2rem;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    box-shadow: 2px 2px 0 var(--black);
+    padding: 0;
+    transition: transform .12s ease;
+  }
+  .metodo-pago-arrow:active { transform: translateY(-50%) scale(0.9); }
+  .metodo-pago-arrow-left { left: 4px; }
+  .metodo-pago-arrow-right { right: 4px; }
+
   /* ── CARD ── */
   .card {
     background: #fff;
@@ -983,13 +1010,22 @@
     </div>
 
     <!-- Método de pago (visible solo si el admin lo configuró) -->
-    <div class="card" id="metodo-pago-card" style="display:none">
-      <h2>💳 Método de pago</h2>
-      <div id="metodo-pago-carrusel" style="overflow:hidden;position:relative;touch-action:pan-y"
-        ontouchstart="metodoPagoTouchStart(event)" ontouchend="metodoPagoTouchEnd(event)">
-        <div id="metodo-pago-track" style="display:flex;transition:transform .3s ease"></div>
+    <div class="card" id="metodo-pago-card" style="display:none;padding:0;overflow:hidden">
+      <div id="metodo-pago-header" onclick="toggleMetodoPagoAcordeon()" style="padding:20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer">
+        <h2 style="margin-bottom:0">💳 Método de pago</h2>
+        <span id="metodo-pago-chevron" style="font-size:1.1rem;font-weight:900;color:var(--magenta-dark);transition:transform .25s ease;display:inline-block">▾</span>
       </div>
-      <div id="metodo-pago-dots" style="display:flex;justify-content:center;gap:6px;margin-top:10px"></div>
+      <div id="metodo-pago-body" style="max-height:0;overflow:hidden;transition:max-height .3s ease">
+        <div style="padding:0 20px 20px">
+          <div id="metodo-pago-carrusel" style="overflow:hidden;position:relative;touch-action:pan-y"
+            ontouchstart="metodoPagoTouchStart(event)" ontouchend="metodoPagoTouchEnd(event)">
+            <div id="metodo-pago-track" style="display:flex;transition:transform .3s ease"></div>
+            <button type="button" id="metodo-pago-prev" class="metodo-pago-arrow metodo-pago-arrow-left" onclick="metodoPagoIrA(metodoPagoIndex-1)" aria-label="Método de pago anterior">‹</button>
+            <button type="button" id="metodo-pago-next" class="metodo-pago-arrow metodo-pago-arrow-right" onclick="metodoPagoIrA(metodoPagoIndex+1)" aria-label="Siguiente método de pago">›</button>
+          </div>
+          <div id="metodo-pago-dots" style="display:flex;justify-content:center;gap:6px;margin-top:10px"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Datos -->
@@ -1303,6 +1339,28 @@
     const adminVisible = document.getElementById('tab-admin') &&
       document.getElementById('tab-admin').classList.contains('visible');
     if (typeof renderOrders === 'function' && adminVisible) renderOrders();
+  });
+
+  // Escuchar carrusel de fotos en tiempo real (para que se vea en todos los celulares)
+  const carruselRef = ref(db, 'config/carruselFotos');
+  onValue(carruselRef, (snapshot) => {
+    const data = snapshot.val();
+    const arr = Array.isArray(data) ? data : [];
+    localStorage.setItem('ochoa_carrusel_fotos', JSON.stringify(arr));
+    window._carruselFotosCache = arr;
+    if (typeof mostrarCarruselFotos === 'function') mostrarCarruselFotos();
+    if (typeof cargarCarruselFotosConfig === 'function') cargarCarruselFotosConfig();
+  });
+
+  // Escuchar métodos de pago en tiempo real (para que se vean en todos los celulares)
+  const metodosPagoRef = ref(db, 'config/metodosPago');
+  onValue(metodosPagoRef, (snapshot) => {
+    const data = snapshot.val();
+    const arr = Array.isArray(data) ? data : [];
+    localStorage.setItem('ochoa_metodos_pago', JSON.stringify(arr));
+    window._metodosPagoCache = arr;
+    if (typeof mostrarMetodoPago === 'function') mostrarMetodoPago();
+    if (typeof cargarMetodoPagoConfig === 'function') cargarMetodoPagoConfig();
   });
 </script>
 
@@ -1646,8 +1704,10 @@
   let metodoPagoIndex = 0;
   let metodoPagoTotal = 0;
   let _metodoPagoTouchX = null;
+  let metodoPagoAbierto = false;
 
   function obtenerMetodosPago() {
+    if (window._metodosPagoCache) return window._metodosPagoCache;
     const raw = localStorage.getItem('ochoa_metodos_pago');
     if (raw) {
       try {
@@ -1667,6 +1727,11 @@
 
   function guardarMetodosPago(arr) {
     localStorage.setItem('ochoa_metodos_pago', JSON.stringify(arr));
+    window._metodosPagoCache = arr;
+    if (window._fbDB) {
+      window._fbSet(window._fbRef(window._fbDB, 'config/metodosPago'), arr)
+        .catch(e => console.error('Firebase metodosPago error:', e));
+    }
   }
 
   function agregarMetodoPago() {
@@ -1858,7 +1923,31 @@
         ? metodos.map((_, i) => `<span class="metodo-pago-dot" onclick="metodoPagoIrA(${i})" style="width:8px;height:8px;border-radius:50%;background:${i === metodoPagoIndex ? 'var(--magenta-dark)' : '#ddd'};cursor:pointer;display:inline-block"></span>`).join('')
         : '';
     }
+    const prevBtn = document.getElementById('metodo-pago-prev');
+    const nextBtn = document.getElementById('metodo-pago-next');
+    const mostrarFlechas = metodos.length > 1;
+    if (prevBtn) prevBtn.style.display = mostrarFlechas ? 'flex' : 'none';
+    if (nextBtn) nextBtn.style.display = mostrarFlechas ? 'flex' : 'none';
     metodoPagoIrA(metodoPagoIndex);
+    actualizarAcordeonMetodoPago();
+  }
+
+  function toggleMetodoPagoAcordeon() {
+    metodoPagoAbierto = !metodoPagoAbierto;
+    actualizarAcordeonMetodoPago();
+  }
+
+  function actualizarAcordeonMetodoPago() {
+    const body = document.getElementById('metodo-pago-body');
+    const chevron = document.getElementById('metodo-pago-chevron');
+    if (!body) return;
+    if (metodoPagoAbierto) {
+      body.style.maxHeight = body.scrollHeight + 'px';
+      if (chevron) chevron.style.transform = 'rotate(180deg)';
+    } else {
+      body.style.maxHeight = '0px';
+      if (chevron) chevron.style.transform = 'rotate(0deg)';
+    }
   }
 
   function metodoPagoIrA(idx) {
@@ -1910,6 +1999,7 @@
   let _carruselFotosTimer = null;
 
   function obtenerFotosCarrusel() {
+    if (window._carruselFotosCache) return window._carruselFotosCache;
     try {
       const arr = JSON.parse(localStorage.getItem('ochoa_carrusel_fotos') || '[]');
       return Array.isArray(arr) ? arr : [];
@@ -1918,6 +2008,11 @@
 
   function guardarFotosCarruselArr(arr) {
     localStorage.setItem('ochoa_carrusel_fotos', JSON.stringify(arr));
+    window._carruselFotosCache = arr;
+    if (window._fbDB) {
+      window._fbSet(window._fbRef(window._fbDB, 'config/carruselFotos'), arr)
+        .catch(e => console.error('Firebase carrusel error:', e));
+    }
   }
 
   function _comprimirImagen(dataUrl, maxAncho) {
