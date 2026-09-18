@@ -611,6 +611,7 @@
     white-space: nowrap;
   }
   .btn-action:active { transform: scale(.97); }
+  .btn-action:disabled { cursor: not-allowed; opacity: .9; transform: none; }
 
   .btn-action.resend   { background: #fff; border-color: #25D366; color: #1a7a4a; }
   .btn-action.delete   { background: #fff; border-color: #e0d8ea; color: #999; }
@@ -1933,7 +1934,7 @@
             <div class="order-name-wrap">
               <div class="order-name">
                 ${escHtml(o.nombre)}
-                <button onclick="editarNombre(${o.id},'${escHtml(o.nombre)}')" title="Editar nombre" class="icon-btn" style="width:22px;height:22px;border-radius:6px">${svgEdit}</button>
+                <button onclick="abrirEdicionPedido(${o.id})" title="Editar pedido" class="icon-btn" style="width:22px;height:22px;border-radius:6px">${svgEdit}</button>
               </div>
               <div class="order-time">${svgClock} ${o.fecha}</div>
             </div>
@@ -1943,7 +1944,6 @@
             ${badgePago}
             <span class="order-qty-badge">
               ${svgBowl} ×${o.cantidad}${totalPedido ? `<span style="opacity:.85;font-size:.75rem">·</span>${totalPedido}` : ''}
-              <button onclick="editarCantidad(${o.id},${o.cantidad})" title="Editar cantidad" style="background:none;border:none;cursor:pointer;padding:0;display:inline-flex;align-items:center;opacity:.8">${svgEdit}</button>
             </span>
           </div>
         </div>
@@ -1957,7 +1957,6 @@
               <span class="info-text" title="${escHtml(o.direccion)}">${escHtml(o.direccion)}</span>
               <div class="info-actions">
                 <button class="icon-btn" onclick="navigator.clipboard.writeText('${escHtml(o.direccion).replace(/'/g,"\\'")}').then(()=>showToast('Dirección copiada'))" title="Copiar">${svgCopy}</button>
-                <button class="icon-btn" onclick="editarDireccion(${o.id},'${escHtml(o.direccion).replace(/'/g,"\\'")}');" title="Editar">${svgEdit}</button>
               </div>
             </div>
 
@@ -1965,7 +1964,6 @@
               <div class="info-icon">${svgPhone}</div>
               <span class="info-text">${escHtml(o.telefono)}</span>
               <div class="info-actions">
-                <button class="icon-btn" onclick="editarTelefono(${o.id},'${escHtml(o.telefono)}')" title="Editar">${svgEdit}</button>
                 <a href="${waHref}" target="_blank" rel="noopener" class="wa-link" title="WhatsApp">${svgWa}</a>
               </div>
             </div>
@@ -1980,11 +1978,8 @@
               <div class="info-icon" style="font-size:0.85rem">${o.metodoPago === 'Nequi' ? '📱' : '💵'}</div>
               ${o.metodoPago ? `
                 <span class="info-text" style="font-weight:800;color:${o.metodoPago === 'Nequi' ? '#6236FF' : '#1a7a4a'}">${escHtml(o.metodoPago)}</span>
-                <div class="info-actions">
-                  <button class="icon-btn" onclick="editarMetodoPago(${o.id},'${escHtml(o.metodoPago)}')" title="Cambiar medio de pago">${svgEdit}</button>
-                </div>
               ` : `
-                <button onclick="editarMetodoPago(${o.id},'')" style="background:none;border:1.5px dashed #ccc;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:0.78rem;font-weight:700;color:var(--gray);padding:4px 10px">💳 <span>Asignar pago</span></button>
+                <span class="info-text" style="color:var(--gray);font-style:italic;font-size:0.82rem">💳 Sin asignar (se asigna al cobrar)</span>
               `}
             </div>
 
@@ -1994,11 +1989,7 @@
           <div class="order-note">
             <span style="flex-shrink:0;margin-top:1px">${svgNote}</span>
             <span style="flex:1">${escHtml(o.nota)}</span>
-            <button class="icon-btn" onclick="editarNota(${o.id},'${(o.nota||'').replace(/'/g,"\\'")}') " title="Editar nota">${svgEdit}</button>
-          </div>` : `
-          <div class="order-note-empty">
-            <button onclick="editarNota(${o.id},'')" style="background:none;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:0.78rem;font-weight:700;color:var(--gray);padding:4px 0">${svgNote} <span>Agregar nota</span></button>
-          </div>`}
+          </div>` : ''}
         </div>
 
         <!-- FOOTER / ACCIONES -->
@@ -2012,12 +2003,12 @@
             </button>
           </div>
           <div class="order-footer-right">
-            <button class="btn-action ${o.entregado ? 'deliver-done' : 'deliver-pending'}" onclick="toggleEntregado(${o.id})">
-              ${o.entregado ? svgCheck+' Entregado' : svgBox+' Marcar entregado'}
+            <button class="btn-action ${o.entregado ? 'deliver-done' : 'deliver-pending'}" onclick="toggleEntregado(${o.id})" ${o.entregado ? 'disabled title="Ya marcado como entregado"' : ''}>
+              ${o.entregado ? svgCheck+' ✔ Entregado' : '☐ Marcar entregado'}
             </button>
             ${o.entregado ? `
-            <button class="btn-action ${o.pagado ? 'pay-done' : 'pay-pending'}" onclick="togglePagado(${o.id})">
-              ${o.pagado ? svgCheck+' Cobrado' : svgCoin+' Cobrar'}
+            <button class="btn-action ${o.pagado ? 'pay-done' : 'pay-pending'}" onclick="togglePagado(${o.id})" ${o.pagado ? 'disabled title="Ya marcado como cobrado"' : ''}>
+              ${o.pagado ? svgCheck+' ✔ Cobrado' : '☐ Cobrar'}
             </button>` : ''}
           </div>
         </div>
@@ -2152,6 +2143,69 @@
     });
   }
 
+  function abrirEdicionPedido(id) {
+    const orders = getOrders();
+    const o = orders.find(x => x.id === id);
+    if (!o) return;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:600;display:flex;align-items:center;justify-content:center;padding:16px';
+    overlay.innerHTML = `
+      <div style="background:#fff;border:3px solid #111;border-radius:20px;padding:24px 22px;max-width:360px;width:100%;box-shadow:6px 6px 0 #111;max-height:90vh;overflow-y:auto">
+        <p style="font-family:'Black Han Sans',sans-serif;font-size:1.1rem;letter-spacing:1.2px;color:#8f0e4e;margin-bottom:16px;text-align:center">✏️ EDITAR PEDIDO</p>
+        <label style="display:block;font-size:0.78rem;font-weight:800;color:#888;margin-bottom:4px">👤 Nombre</label>
+        <input id="ep-nombre" type="text" value="${escHtml(o.nombre)}" style="width:100%;box-sizing:border-box;padding:10px 12px;border:2px solid #e0e0e0;border-radius:10px;font-size:0.95rem;outline:none;margin-bottom:14px;font-family:inherit">
+        <label style="display:block;font-size:0.78rem;font-weight:800;color:#888;margin-bottom:4px">📍 Dirección</label>
+        <input id="ep-direccion" type="text" value="${escHtml(o.direccion)}" style="width:100%;box-sizing:border-box;padding:10px 12px;border:2px solid #e0e0e0;border-radius:10px;font-size:0.95rem;outline:none;margin-bottom:14px;font-family:inherit">
+        <label style="display:block;font-size:0.78rem;font-weight:800;color:#888;margin-bottom:4px">📞 Teléfono</label>
+        <input id="ep-telefono" type="tel" value="${escHtml(o.telefono)}" style="width:100%;box-sizing:border-box;padding:10px 12px;border:2px solid #e0e0e0;border-radius:10px;font-size:0.95rem;outline:none;margin-bottom:14px;font-family:inherit">
+        <label style="display:block;font-size:0.78rem;font-weight:800;color:#888;margin-bottom:4px">🍚 Cantidad</label>
+        <input id="ep-cantidad" type="number" min="1" value="${o.cantidad}" style="width:100%;box-sizing:border-box;padding:10px 12px;border:2px solid #e0e0e0;border-radius:10px;font-size:0.95rem;outline:none;margin-bottom:14px;font-family:inherit">
+        <label style="display:block;font-size:0.78rem;font-weight:800;color:#888;margin-bottom:4px">💬 Nota</label>
+        <input id="ep-nota" type="text" value="${escHtml(o.nota || '')}" style="width:100%;box-sizing:border-box;padding:10px 12px;border:2px solid #e0e0e0;border-radius:10px;font-size:0.95rem;outline:none;margin-bottom:18px;font-family:inherit">
+        <div style="display:flex;gap:10px">
+          <button id="ep-cancel" style="flex:1;padding:12px;background:#f0f0f0;color:#333;border:none;border-radius:12px;font-size:0.9rem;font-weight:700;cursor:pointer">Cancelar</button>
+          <button id="ep-guardar" style="flex:1;padding:12px;background:#c0185a;color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:800;cursor:pointer">Guardar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#ep-cancel').onclick = () => document.body.removeChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) document.body.removeChild(overlay); });
+
+    overlay.querySelector('#ep-guardar').onclick = () => {
+      const nombre = overlay.querySelector('#ep-nombre').value.trim();
+      const direccion = overlay.querySelector('#ep-direccion').value.trim();
+      const telefono = overlay.querySelector('#ep-telefono').value.trim();
+      const cantidad = parseInt(overlay.querySelector('#ep-cantidad').value, 10);
+      const nota = overlay.querySelector('#ep-nota').value.trim();
+
+      if (!nombre) { showToast('⚠️ El nombre no puede quedar vacío'); return; }
+      if (!direccion) { showToast('⚠️ La dirección no puede quedar vacía'); return; }
+      if (!telefono) { showToast('⚠️ El teléfono no puede quedar vacío'); return; }
+      if (isNaN(cantidad) || cantidad < 1) { showToast('⚠️ Ingresa una cantidad válida (mínimo 1)'); return; }
+
+      document.body.removeChild(overlay);
+
+      const updates = { nombre, direccion, telefono, cantidad, nota };
+      if (o.precioUnit > 0) updates.total = cantidad * o.precioUnit;
+
+      if (window._fbDB && o.fbKey) {
+        const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
+        window._fbUpdate(pedidoRef, updates);
+      } else {
+        o.nombre = nombre;
+        o.direccion = direccion;
+        o.telefono = telefono;
+        o.cantidad = cantidad;
+        o.nota = nota;
+        if (o.precioUnit > 0) o.total = updates.total;
+        saveOrders(orders);
+        renderOrders();
+      }
+      showToast('✏️ Pedido actualizado');
+    };
+  }
+
   function editarMetodoPago(id, actual) {
     // Modal inline: dos botones Efectivo / Nequi
     const overlay = document.createElement('div');
@@ -2194,41 +2248,59 @@
     overlay.addEventListener('click', e => { if (e.target === overlay) document.body.removeChild(overlay); });
   }
 
+  function confirmarAccion(titulo, mensaje, onConfirm) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:700;display:flex;align-items:center;justify-content:center;padding:24px';
+    overlay.innerHTML = `
+      <div style="background:#fff;border:3px solid #111;border-radius:20px;padding:24px 20px;max-width:300px;width:100%;box-shadow:6px 6px 0 #111;text-align:center">
+        <p style="font-family:'Black Han Sans',sans-serif;font-size:1.05rem;letter-spacing:1.2px;color:#8f0e4e;margin-bottom:10px">${titulo}</p>
+        <p style="font-size:0.85rem;color:#444;font-weight:700;margin-bottom:18px;line-height:1.4">${mensaje}</p>
+        <div style="display:flex;gap:10px;justify-content:center">
+          <button id="confirmar-si" style="flex:1;padding:12px 10px;border:none;border-radius:12px;background:#c0186a;color:#fff;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.9rem;cursor:pointer">Sí, confirmar</button>
+          <button id="confirmar-no" style="flex:1;padding:12px 10px;border:1.5px solid #ddd;border-radius:12px;background:#fff;color:#888;font-family:'Nunito',sans-serif;font-weight:700;font-size:0.9rem;cursor:pointer">Cancelar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#confirmar-si').onclick = () => { document.body.removeChild(overlay); onConfirm(); };
+    overlay.querySelector('#confirmar-no').onclick = () => document.body.removeChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) document.body.removeChild(overlay); });
+  }
+
   function toggleEntregado(id) {
     const orders = getOrders();
     const o = orders.find(x => x.id === id);
     if (!o) return;
-    const nuevoEstado = !o.entregado;
-    if (window._fbDB && o.fbKey) {
-      const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
-      window._fbUpdate(pedidoRef, { entregado: nuevoEstado });
-    } else {
-      o.entregado = nuevoEstado;
-      saveOrders(orders);
-      renderOrders();
-    }
+    if (o.entregado) return; // ya marcado: queda bloqueado, no se puede desmarcar
+
+    confirmarAccion('📦 MARCAR ENTREGADO', '¿Seguro que desea marcar este pedido como entregado? Esta acción no se puede deshacer.', () => {
+      if (window._fbDB && o.fbKey) {
+        const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
+        window._fbUpdate(pedidoRef, { entregado: true });
+      } else {
+        o.entregado = true;
+        saveOrders(orders);
+        renderOrders();
+      }
+      showToast('📦 Pedido marcado como entregado');
+    });
   }
 
   function togglePagado(id) {
     const orders = getOrders();
     const o = orders.find(x => x.id === id);
     if (!o) return;
+    if (o.pagado) return; // ya cobrado: queda bloqueado, no se puede desmarcar
 
-    // Si ya está pagado → desmarcar directamente
-    if (o.pagado) {
-      if (window._fbDB && o.fbKey) {
-        const pedidoRef = window._fbRef(window._fbDB, `pedidos/${o.fbKey}`);
-        window._fbUpdate(pedidoRef, { pagado: false });
-      } else {
-        o.pagado = false;
-        saveOrders(orders);
-        renderOrders();
-      }
-      showToast('⏳ Marcado como pendiente de cobro');
-      return;
-    }
+    confirmarAccion('💰 MARCAR COBRADO', '¿Seguro que desea marcar este pedido como cobrado?', () => {
+      abrirSeleccionMetodoPago(id);
+    });
+  }
 
-    // Si no está pagado → pedir método de cobro
+  function abrirSeleccionMetodoPago(id) {
+    const orders = getOrders();
+    const o = orders.find(x => x.id === id);
+    if (!o) return;
+
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:24px';
     overlay.innerHTML = `
