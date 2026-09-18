@@ -1181,6 +1181,15 @@
   </div>
 </div>
 
+<!-- MODAL IMAGEN AMPLIADA MÉTODO DE PAGO -->
+<div id="modal-metodo-pago-img" style="display:none;position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.75);align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border:3px solid #111;border-radius:20px;padding:20px;max-width:340px;width:100%;box-shadow:6px 6px 0 #111;text-align:center">
+    <h3 style="font-family:'Black Han Sans',sans-serif;font-size:1.05rem;letter-spacing:1.2px;color:var(--magenta-dark);margin:0 0 14px">📷 CÓDIGO PARA PAGAR</h3>
+    <img id="modal-metodo-pago-img-src" src="" style="width:100%;max-height:60vh;object-fit:contain;border-radius:12px;border:2px solid var(--black);display:block;margin:0 auto">
+    <button onclick="document.getElementById('modal-metodo-pago-img').style.display='none'" style="margin-top:16px;width:100%;padding:12px;background:var(--magenta);color:#fff;border:none;border-radius:12px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.9rem;cursor:pointer">Cerrar</button>
+  </div>
+</div>
+
 <!-- MODAL CIERRE DÍA -->
 <div id="modal-cierre">
   <div class="modal-box">
@@ -1657,6 +1666,40 @@
     mostrarMetodoPago();
   }
 
+  function cargarQRPago(idx, input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const arr = obtenerMetodosPago();
+      if (!arr[idx]) return;
+      arr[idx].qr = e.target.result;
+      guardarMetodosPago(arr);
+      cargarMetodoPagoConfig();
+      mostrarMetodoPago();
+      showToast('📷 Código QR actualizado');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function borrarQRPago(idx) {
+    const arr = obtenerMetodosPago();
+    if (!arr[idx]) return;
+    arr[idx].qr = '';
+    guardarMetodosPago(arr);
+    cargarMetodoPagoConfig();
+    mostrarMetodoPago();
+    showToast('🗑 Código QR eliminado');
+  }
+
+  function abrirImagenMetodoPago(idx) {
+    const metodos = obtenerMetodosPago().filter(m => m.banco || m.cuenta || m.titular || m.imagen);
+    const m = metodos[idx];
+    if (!m || !m.qr) { showToast('⚠️ Este método de pago aún no tiene un código para mostrar'); return; }
+    document.getElementById('modal-metodo-pago-img-src').src = m.qr;
+    document.getElementById('modal-metodo-pago-img').style.display = 'flex';
+  }
+
   function cargarImagenPago(idx, input) {
     const file = input.files[0];
     if (!file) return;
@@ -1708,6 +1751,18 @@
           <button type="button" onclick="borrarImagenPago(${i})" style="padding:7px 14px;background:transparent;border:2px solid #ddd;border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.78rem;cursor:pointer;color:var(--gray)">🗑 Quitar imagen</button>
         </div>
         ${m.imagen ? `<img src="${m.imagen}" style="max-width:140px;border-radius:12px;border:2px solid var(--black);margin-top:6px;display:block">` : ''}
+
+        <div style="margin-top:14px;padding-top:12px;border-top:1.5px dashed #ddd">
+          <label style="display:block;font-size:0.78rem;font-weight:800;color:#888;margin-bottom:8px">📷 Código QR para pagar (se muestra al presionar la imagen)</label>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <label style="padding:8px 16px;background:var(--magenta);color:#fff;border:2px solid var(--black);border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.82rem;cursor:pointer;text-transform:uppercase;letter-spacing:1px;margin:0">
+              📁 Subir QR
+              <input type="file" accept="image/*" style="display:none" onchange="cargarQRPago(${i},this)">
+            </label>
+            <button type="button" onclick="borrarQRPago(${i})" style="padding:7px 14px;background:transparent;border:2px solid #ddd;border-radius:30px;font-family:'Nunito',sans-serif;font-weight:800;font-size:0.78rem;cursor:pointer;color:var(--gray)">🗑 Quitar QR</button>
+          </div>
+          ${m.qr ? `<img src="${m.qr}" style="max-width:140px;border-radius:12px;border:2px solid var(--black);margin-top:10px;display:block">` : ''}
+        </div>
       </div>
     `).join('');
   }
@@ -1722,9 +1777,9 @@
     if (metodoPagoIndex >= metodoPagoTotal) metodoPagoIndex = 0;
     const track = document.getElementById('metodo-pago-track');
     if (track) {
-      track.innerHTML = metodos.map(m => `
+      track.innerHTML = metodos.map((m, i) => `
         <div class="metodo-pago-slide" style="min-width:100%;flex-shrink:0;text-align:center;padding:0 2px;box-sizing:border-box">
-          ${m.imagen ? `<img src="${m.imagen}" style="max-width:150px;max-height:150px;object-fit:contain;border-radius:12px;margin:0 auto 12px;border:2px solid var(--black);display:block">` : ''}
+          ${m.imagen ? `<img src="${m.imagen}" onclick="abrirImagenMetodoPago(${i})" title="Toca para ver el código de pago" style="max-width:150px;max-height:150px;object-fit:contain;border-radius:12px;margin:0 auto 12px;border:2px solid var(--black);display:block;cursor:pointer">` : ''}
           ${m.banco ? `<p style="margin-bottom:6px"><strong style="color:var(--magenta-dark)">${escHtml(m.banco)}</strong></p>` : ''}
           ${m.cuenta ? `<p style="margin-bottom:4px;font-size:0.92rem;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap">Número de cuenta: <strong>${escHtml(m.cuenta)}</strong>
             <button type="button" onclick="copiarCuenta('${escHtml(m.cuenta).replace(/'/g, "\\'")}')" style="padding:4px 10px;background:var(--light);border:1.5px solid var(--magenta-dark);border-radius:20px;font-size:0.72rem;font-weight:800;color:var(--magenta-dark);cursor:pointer;line-height:1.4">📋 Copiar</button>
